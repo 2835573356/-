@@ -1,0 +1,1995 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>影刀社区 · 企业级运营数据看板</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    --c-danger:  #ef4444;
+    --c-danger-soft: #fee2e2;
+    --c-warn:    #f59e0b;
+    --c-warn-soft: #fef3c7;
+    --c-ok:      #10b981;
+    --c-ok-soft: #d1fae5;
+    --c-info:    #3b82f6;
+    --c-info-soft: #dbeafe;
+    --c-purple:  #8b5cf6;
+    --t-primary:   #0f172a;
+    --t-secondary: #475569;
+    --t-tertiary:  #94a3b8;
+    --bg-dark-1: #0f172a;
+    --bg-dark-2: #1e293b;
+    --bg-dark-3: #334155;
+    --glass-dark: rgba(30, 41, 59, 0.75);
+  }
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 50%, #dbeafe 100%);
+    background-attachment: fixed;
+    color: var(--t-primary);
+    overflow-x: hidden;
+    transition: background 0.6s ease, color 0.6s ease;
+  }
+  body.dark {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    background-attachment: fixed;
+    color: #e2e8f0;
+  }
+  body.dark .t-primary { color: #e2e8f0; }
+  body.dark .t-secondary { color: #94a3b8; }
+  body.dark .t-tertiary { color: #64748b; }
+  body.dark .t-danger { color: #f87171; }
+  body.dark .t-warn { color: #fbbf24; }
+  body.dark .t-ok { color: #34d399; }
+  body.dark .t-info { color: #60a5fa; }
+  body.dark .t-purple { color: #a78bfa; }
+  body.dark .glass {
+    background: rgba(30, 41, 59, 0.75);
+    border-color: rgba(71, 85, 105, 0.5);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.05) inset, 0 8px 32px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
+    background-image: linear-gradient(to bottom, rgba(255,255,255,0.03), transparent 50%);
+  }
+  body.dark .glass:hover { background-color: rgba(51, 65, 85, 0.8); }
+  body.dark .glass::before { background: linear-gradient(to bottom, rgba(255,255,255,0.08), rgba(255,255,255,0) 50%); }
+  body.dark .top-nav { background: rgba(15, 23, 42, 0.8); border-bottom-color: rgba(71, 85, 105, 0.5); }
+  body.dark .mini-card { background: rgba(51, 65, 85, 0.5); border-color: rgba(71, 85, 105, 0.5); }
+  body.dark .mini-card:hover { background: rgba(51, 65, 85, 0.8); border-color: rgba(100, 116, 139, 0.8); }
+  body.dark .chip { background: rgba(51, 65, 85, 0.6); border-color: rgba(71, 85, 105, 0.5); color: #94a3b8; }
+  body.dark .risk-card { background: linear-gradient(135deg, rgba(127, 29, 29, 0.4), rgba(30, 41, 59, 0.7)); }
+  body.dark .risk-mini { background: rgba(127, 29, 29, 0.3); border-color: rgba(239, 68, 68, 0.2); }
+  body.dark .risk-mini-amber { background: rgba(120, 53, 15, 0.3); border-color: rgba(245, 158, 11, 0.2); }
+  body.dark .section-title { color: #e2e8f0; }
+  body.dark .modal-overlay { background: rgba(0,0,0,0.7); }
+  body.dark .modal-content { background: #1e293b; border-color: rgba(71,85,105,0.6); color: #e2e8f0; }
+  body.dark input, body.dark select, body.dark textarea { background: #334155; border-color: #475569; color: #e2e8f0; }
+  body.dark .dropdown-menu { background: rgba(30,41,59,0.95); border-color: rgba(71,85,105,0.6); }
+
+  .ambient-orb {
+    position: fixed; border-radius: 9999px;
+    filter: blur(120px); opacity: 0.45;
+    pointer-events: none; z-index: 0;
+    transition: opacity 0.8s ease, transform 8s ease-in-out;
+  }
+  .orb-1 { width: 480px; height: 480px; background: #93c5fd; top: -120px; left: -120px; animation: orbFloat1 12s ease-in-out infinite; }
+  .orb-2 { width: 420px; height: 420px; background: #c7d2fe; top: 30%; right: -150px; animation: orbFloat2 14s ease-in-out infinite; }
+  .orb-3 { width: 420px; height: 420px; background: #a5f3fc; bottom: -150px; left: 30%; animation: orbFloat3 16s ease-in-out infinite; }
+  .orb-4 { width: 320px; height: 320px; background: #ddd6fe; top: 60%; left: -100px; opacity: 0.35; animation: orbFloat4 10s ease-in-out infinite; }
+  body.dark .ambient-orb { opacity: 0.2; }
+  @keyframes orbFloat1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(40px, 30px) scale(1.05); }
+    66% { transform: translate(-20px, -20px) scale(0.95); }
+  }
+  @keyframes orbFloat2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(-50px, -20px) scale(1.08); }
+    66% { transform: translate(20px, 40px) scale(0.92); }
+  }
+  @keyframes orbFloat3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(30px, -40px) scale(1.06); }
+    66% { transform: translate(-30px, -10px) scale(0.94); }
+  }
+  @keyframes orbFloat4 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(50px, -30px) scale(1.1); }
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 24px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 8px 32px rgba(15, 23, 42, 0.08),
+      0 2px 8px rgba(15, 23, 42, 0.04);
+    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.5), transparent 50%);
+    transition: all 500ms var(--ease-spring);
+    position: relative; overflow: hidden;
+  }
+  .glass:hover {
+    background-color: rgba(255, 255, 255, 0.78);
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 20px 50px rgba(15, 23, 42, 0.12),
+      0 4px 12px rgba(15, 23, 42, 0.06);
+  }
+  .glass::before {
+    content: ""; position: absolute; inset: 0;
+    border-radius: inherit; padding: 1px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0) 50%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .top-nav {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    transition: all 0.4s ease;
+  }
+
+  .score-ring { position: relative; width: 180px; height: 180px; }
+  .score-ring svg { transform: rotate(-90deg); }
+  .score-ring .track { stroke: rgba(148, 163, 184, 0.25); }
+  .score-ring .progress {
+    stroke: url(#scoreGrad); stroke-linecap: round;
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.35));
+    transition: stroke-dashoffset 1.2s var(--ease-spring);
+  }
+
+  .badge-p0 { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; box-shadow: 0 2px 8px rgba(239,68,68,0.3); }
+  .badge-p1 { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,0.3); }
+  .badge-p2 { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 12px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: var(--t-secondary);
+    cursor: default;
+    transition: all 0.3s ease;
+  }
+  .chip-clickable { cursor: pointer; }
+  .chip-clickable:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .chip-clickable:active { transform: scale(0.95); }
+  .chip-danger { background: var(--c-danger-soft); border-color: rgba(239,68,68,0.3); color: #991b1b; }
+  .chip-warn   { background: var(--c-warn-soft);   border-color: rgba(245,158,11,0.3); color: #92400e; }
+  .chip-ok     { background: var(--c-ok-soft);     border-color: rgba(16,185,129,0.3); color: #065f46; }
+  .chip-info   { background: var(--c-info-soft);   border-color: rgba(59,130,246,0.3); color: #1e40af; }
+
+  .pulse-dot {
+    width: 8px; height: 8px; border-radius: 9999px; background: var(--c-danger);
+    box-shadow: 0 0 0 0 rgba(239,68,68, 0.6);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(239,68,68, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(239,68,68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239,68,68, 0); }
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.4); border-radius: 999px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  .mini-card {
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 16px; padding: 14px;
+    transition: all 400ms var(--ease-spring);
+    cursor: pointer;
+    position: relative; overflow: hidden;
+  }
+  .mini-card:hover {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(203, 213, 225, 1);
+    transform: translateY(-1px);
+  }
+  .mini-card:active { transform: scale(0.98); }
+  .mini-card.clickable { cursor: pointer; }
+  .mini-card .ripple {
+    position: absolute; border-radius: 50%;
+    background: rgba(59, 130, 246, 0.3);
+    transform: scale(0); animation: ripple 0.6s linear;
+    pointer-events: none;
+  }
+  @keyframes ripple { to { transform: scale(4); opacity: 0; } }
+
+  .bar-track { background: rgba(148, 163, 184, 0.18); border-radius: 999px; height: 8px; overflow: hidden; }
+  .bar-fill  { height: 100%; border-radius: 999px; transition: width 1s var(--ease-spring); }
+
+  .specular { position: relative; }
+  .specular::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 900ms var(--ease-spring);
+    pointer-events: none; border-radius: inherit;
+  }
+  .specular:hover::after { transform: translateX(100%); }
+
+  .section-title { font-weight: 600; color: var(--t-primary); letter-spacing: 0.01em; }
+  .section-sub   { color: var(--t-tertiary); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+
+  .t-primary   { color: var(--t-primary); }
+  .t-secondary { color: var(--t-secondary); }
+  .t-tertiary  { color: var(--t-tertiary); }
+  .t-danger    { color: #dc2626; }
+  .t-warn      { color: #d97706; }
+  .t-ok        { color: #059669; }
+  .t-info      { color: #2563eb; }
+  .t-purple    { color: #7c3aed; }
+
+  .risk-card {
+    background: linear-gradient(135deg, rgba(254, 226, 226, 0.7), rgba(255, 255, 255, 0.65));
+  }
+  .risk-mini {
+    background: rgba(254, 242, 242, 0.85);
+    border-color: rgba(239, 68, 68, 0.25);
+    cursor: pointer;
+  }
+  .risk-mini:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(239,68,68,0.15); }
+  .risk-mini-amber {
+    background: rgba(255, 251, 235, 0.85);
+    border-color: rgba(245, 158, 11, 0.3);
+    cursor: pointer;
+  }
+  .risk-mini-amber:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(245,158,11,0.15); }
+
+  /* Toast notifications */
+  .toast-container {
+    position: fixed; top: 20px; right: 20px; z-index: 9999;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .toast {
+    padding: 14px 20px; border-radius: 14px; color: #fff; font-size: 14px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    animation: toastIn 0.4s var(--ease-spring), toastOut 0.3s 2.5s ease forwards;
+    max-width: 400px; cursor: pointer;
+  }
+  .toast-success { background: rgba(16,185,129,0.9); }
+  .toast-error { background: rgba(239,68,68,0.9); }
+  .toast-info { background: rgba(59,130,246,0.9); }
+  .toast-warn { background: rgba(245,158,11,0.9); }
+  @keyframes toastIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes toastOut {
+    from { opacity: 1; }
+    to { opacity: 0; transform: translateY(-10px); }
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 9000;
+    background: rgba(15, 23, 42, 0.5);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    animation: fadeIn 0.3s ease;
+  }
+  .modal-overlay.closing { animation: fadeOut 0.25s ease forwards; }
+  .modal-content {
+    background: #fff; border-radius: 24px; padding: 32px;
+    max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 25px 60px rgba(15,23,42,0.2);
+    animation: modalPop 0.4s var(--ease-spring);
+    border: 1px solid rgba(226,232,240,0.9);
+  }
+  .modal-content.closing { animation: modalPopOut 0.25s ease forwards; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes modalPop {
+    from { transform: scale(0.85) translateY(30px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  @keyframes modalPopOut {
+    from { transform: scale(1); opacity: 1; }
+    to { transform: scale(0.85) translateY(30px); opacity: 0; }
+  }
+
+  /* Skeleton loading */
+  .skeleton {
+    background: linear-gradient(90deg, rgba(148,163,184,0.15) 25%, rgba(148,163,184,0.3) 50%, rgba(148,163,184,0.15) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 8px;
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  /* Refresh button spin */
+  .refresh-btn {
+    cursor: pointer; transition: all 0.3s ease;
+  }
+  .refresh-btn:hover { transform: rotate(15deg); }
+  .refresh-btn.spinning { animation: spin 0.8s ease-in-out; }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Nav link styles */
+  .nav-link {
+    cursor: pointer; padding: 6px 14px; border-radius: 999px;
+    font-size: 13px; font-weight: 500;
+    color: var(--t-secondary);
+    transition: all 0.3s ease;
+  }
+  .nav-link:hover { color: var(--t-primary); background: rgba(59,130,246,0.08); }
+  .nav-link.active {
+    color: #3b82f6; background: rgba(59,130,246,0.12);
+    font-weight: 600;
+  }
+
+  /* Dropdown menu */
+  .dropdown-container { position: relative; }
+  .dropdown-menu {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(226,232,240,0.9);
+    border-radius: 16px; padding: 8px;
+    min-width: 180px;
+    box-shadow: 0 12px 40px rgba(15,23,42,0.15);
+    z-index: 100;
+    animation: dropdownIn 0.25s var(--ease-spring);
+    display: none;
+  }
+  .dropdown-menu.show { display: block; }
+  @keyframes dropdownIn {
+    from { transform: translateY(-8px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .dropdown-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-radius: 10px;
+    font-size: 14px; color: var(--t-primary);
+    cursor: pointer; transition: all 0.2s ease;
+  }
+  .dropdown-item:hover { background: rgba(59,130,246,0.08); }
+  .dropdown-item:active { transform: scale(0.97); }
+
+  /* Count-up animation */
+  .count-up { transition: all 0.1s ease; }
+
+  /* Highlight pulse */
+  .highlight-pulse { animation: highlightPulse 0.6s ease; }
+  @keyframes highlightPulse {
+    0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+    50% { box-shadow: 0 0 0 12px rgba(59,130,246,0); }
+    100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+  }
+
+  /* Staggered fade-in for list items */
+  .stagger-item {
+    opacity: 0; transform: translateY(16px);
+    animation: staggerIn 0.5s var(--ease-spring) forwards;
+  }
+  @keyframes staggerIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Copy button */
+  .copy-btn {
+    opacity: 0; transition: opacity 0.3s ease;
+  }
+  .mini-card:hover .copy-btn { opacity: 1; }
+
+  /* Mobile menu */
+  .mobile-menu { display: none; }
+  @media (max-width: 767px) {
+    .mobile-menu.show { display: flex; flex-direction: column; }
+    .desktop-nav-links { display: none !important; }
+    .mobile-menu-btn { display: flex !important; }
+  }
+  @media (min-width: 768px) {
+    .mobile-menu-btn { display: none !important; }
+    .mobile-menu { display: none !important; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* Page sections */
+  .page-section { display: none; }
+  .page-section.active { display: block; animation: sectionIn 0.5s var(--ease-spring); }
+  @keyframes sectionIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Button styles */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 18px; border-radius: 12px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.3s var(--ease-spring);
+    border: none;
+  }
+  .btn-primary { background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(59,130,246,0.4); }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-outline { background: transparent; border: 1px solid rgba(148,163,184,0.4); color: var(--t-primary); }
+  .btn-outline:hover { background: rgba(59,130,246,0.06); border-color: rgba(59,130,246,0.4); }
+  .btn-sm { padding: 4px 12px; font-size: 11px; border-radius: 8px; }
+  .btn-icon { width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+
+  /* Category bar hover */
+  .cat-bar-segment {
+    transition: filter 0.3s ease, transform 0.3s ease;
+    cursor: pointer;
+  }
+  .cat-bar-segment:hover { filter: brightness(1.1); transform: scaleX(1.02); }
+
+  /* Resolved state */
+  .resolved { opacity: 0.6; text-decoration: line-through; }
+</style>
+</head>
+<body>
+
+  <!-- Ambient orbs -->
+  <div class="ambient-orb orb-1"></div>
+  <div class="ambient-orb orb-2"></div>
+  <div class="ambient-orb orb-3"></div>
+  <div class="ambient-orb orb-4"></div>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Top navigation -->
+  <nav class="top-nav sticky top-0 z-50 px-6 md:px-10 py-4">
+    <div class="max-w-[1440px] mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-10 h-10 rounded-2xl flex items-center justify-center cursor-pointer"
+             style="background: linear-gradient(135deg, #3b82f6, #6366f1); box-shadow: 0 8px 24px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.5);"
+             onclick="switchPage('dashboard')" title="返回首页">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/>
+          </svg>
+        </div>
+        <div style="cursor: pointer;" onclick="switchPage('dashboard')">
+          <div class="text-lg md:text-xl font-semibold tracking-wide t-primary">影刀社区 · 运营数据看板</div>
+          <div class="text-xs t-tertiary">Community Operations Intelligence · Enterprise Edition</div>
+        </div>
+      </div>
+
+      <!-- Desktop nav links -->
+      <div class="hidden md:flex items-center gap-1 desktop-nav-links" id="desktopNavLinks">
+        <span class="nav-link active" data-page="dashboard" onclick="switchPage('dashboard')">📊 看板总览</span>
+        <span class="nav-link" data-page="trends" onclick="switchPage('trends')">📈 趋势分析</span>
+        <span class="nav-link" data-page="issues" onclick="switchPage('issues')">🔍 问题分析</span>
+        <span class="nav-link" data-page="risk" onclick="switchPage('risk')">⚠️ 风险中心</span>
+        <span class="nav-link" data-page="posts" onclick="switchPage('posts')">📋 帖子管理</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <span class="hidden md:flex items-center gap-3" id="statusChips">
+          <span class="chip" id="liveChip"><span class="pulse-dot" id="pulseDot"></span> <span id="liveText">实时</span></span>
+          <span class="chip chip-info chip-clickable" onclick="openDatePicker()" title="点击切换数据周期">
+            📅 数据周期 <span id="dateRangeDisplay">2026/06/20 — 2026/06/25</span>
+          </span>
+          <span class="chip">📊 样本 <span id="sampleCount">314</span> 条</span>
+        </span>
+        <span class="chip chip-clickable refresh-btn" onclick="refreshData()" title="刷新数据">🔄</span>
+        <span class="chip chip-clickable" onclick="toggleTheme()" title="切换主题" id="themeToggle">🌓</span>
+        <div class="dropdown-container">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold cursor-pointer"
+               style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff;"
+               onclick="toggleDropdown()" title="用户菜单">
+            管
+          </div>
+          <div class="dropdown-menu" id="userDropdown">
+            <div class="dropdown-item" onclick="showToast('个人信息页面开发中', 'info'); closeDropdown();">
+              <span>👤</span> 个人信息
+            </div>
+            <div class="dropdown-item" onclick="showToast('系统设置页面开发中', 'info'); closeDropdown();">
+              <span>⚙️</span> 系统设置
+            </div>
+            <div class="dropdown-item" onclick="exportDashboard(); closeDropdown();">
+              <span>📥</span> 导出报告
+            </div>
+            <div class="dropdown-item" onclick="toggleTheme(); closeDropdown();">
+              <span>🎨</span> 切换主题
+            </div>
+            <hr style="border-color: rgba(148,163,184,0.2); margin: 4px 0;">
+            <div class="dropdown-item" onclick="showToast('已退出登录', 'success'); closeDropdown();" style="color: #ef4444;">
+              <span>🚪</span> 退出登录
+            </div>
+          </div>
+        </div>
+        <!-- Mobile menu button -->
+        <span class="chip chip-clickable mobile-menu-btn" onclick="toggleMobileMenu()" style="display:none;">☰</span>
+      </div>
+    </div>
+    <!-- Mobile nav links -->
+    <div class="mobile-menu mt-3 gap-1" id="mobileMenu">
+      <span class="nav-link active" data-page="dashboard" onclick="switchPage('dashboard'); toggleMobileMenu();">📊 看板总览</span>
+      <span class="nav-link" data-page="trends" onclick="switchPage('trends'); toggleMobileMenu();">📈 趋势分析</span>
+      <span class="nav-link" data-page="issues" onclick="switchPage('issues'); toggleMobileMenu();">🔍 问题分析</span>
+      <span class="nav-link" data-page="risk" onclick="switchPage('risk'); toggleMobileMenu();">⚠️ 风险中心</span>
+      <span class="nav-link" data-page="posts" onclick="switchPage('posts'); toggleMobileMenu();">📋 帖子管理</span>
+    </div>
+  </nav>
+
+  <main class="relative z-10 max-w-[1440px] mx-auto px-6 md:px-10 py-8 md:py-12">
+
+    <!-- ==================== DASHBOARD PAGE ==================== -->
+    <div class="page-section active" id="page-dashboard">
+
+    <header class="mb-8 md:mb-10">
+      <h1 class="text-3xl md:text-5xl font-semibold tracking-tight t-primary">每日洞察 · <span class="t-secondary" id="headerDate">2026年6月25日</span></h1>
+      <p class="t-secondary mt-3 text-sm md:text-base max-w-2xl leading-relaxed">
+        监控 / 趋势 / 异常 / 归因 / 风险 — 面向产品与运营决策的社区健康透视。
+      </p>
+    </header>
+
+    <!-- Section 1: Health Score + Today vs Yesterday + P0 Risk -->
+    <section class="grid grid-cols-12 gap-5 md:gap-6 mb-6">
+      <div class="glass specular col-span-12 lg:col-span-5 p-6 md:p-8">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="section-sub">SYSTEM HEALTH</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">数据总体健康度</h2>
+          </div>
+          <span class="chip chip-danger chip-clickable" onclick="openHealthDetail()" title="点击查看健康详情">高风险</span>
+        </div>
+
+        <div class="flex items-center gap-6 md:gap-8">
+          <div class="score-ring shrink-0 cursor-pointer" onclick="openHealthDetail()" title="点击查看健康详情">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              <defs>
+                <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ef4444"/>
+                  <stop offset="50%" stop-color="#f97316"/>
+                  <stop offset="100%" stop-color="#f59e0b"/>
+                </linearGradient>
+              </defs>
+              <circle class="track" cx="90" cy="90" r="78" fill="none" stroke-width="14"/>
+              <circle class="progress" cx="90" cy="90" r="78" fill="none" stroke-width="14"
+                      stroke-dasharray="490" stroke-dashoffset="270" id="healthRing"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <div class="text-5xl font-semibold leading-none t-primary count-up" id="healthScore">45</div>
+              <div class="text-xs t-tertiary mt-2">/ 100</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 flex-1">
+            <div class="mini-card clickable" onclick="filterByMetric('total')" title="点击查看全部帖子">
+              <div class="text-xs t-tertiary">总帖子量</div>
+              <div class="text-2xl font-semibold mt-1 t-primary count-up" id="totalPosts">314</div>
+            </div>
+            <div class="mini-card clickable" onclick="filterByMetric('daily_avg')" title="点击查看日均趋势">
+              <div class="text-xs t-tertiary">日均帖子量</div>
+              <div class="text-2xl font-semibold mt-1 t-primary count-up" id="dailyAvg">52.3</div>
+            </div>
+            <div class="mini-card clickable" onclick="filterByCategory('Bug / 系统异常')" title="点击查看Bug类帖子">
+              <div class="text-xs t-tertiary">Bug 占比</div>
+              <div class="text-2xl font-semibold mt-1 t-danger count-up" id="bugRatio">34.7%</div>
+            </div>
+            <div class="mini-card clickable" onclick="showToast('已筛选消极情绪帖子', 'info')" title="点击查看消极情绪帖子">
+              <div class="text-xs t-tertiary">消极情绪占比</div>
+              <div class="text-2xl font-semibold mt-1 t-danger count-up" id="negRatio">51.0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 text-sm t-secondary leading-relaxed">
+          评分逻辑：Bug 占比与消极情绪占比双高，且出现 P0 紧急求助。
+          系统处于<span class="t-danger font-medium">承压区间</span>，建议进入预警状态。
+        </div>
+      </div>
+
+      <div class="glass specular col-span-6 lg:col-span-3 p-5 md:p-6 cursor-pointer" onclick="openDailyComparison()" title="点击查看详细日环比">
+        <div class="flex items-center justify-between">
+          <span class="section-sub">今日 vs 昨日</span>
+          <span class="chip chip-danger">突增</span>
+        </div>
+        <div class="mt-3 text-3xl md:text-4xl font-semibold t-danger count-up" id="changePercent">+17.9%</div>
+        <div class="text-sm t-secondary mt-1">Bug 类问题（6/23→6/24）</div>
+        <div class="bar-track mt-4">
+          <div class="bar-fill" style="width: 72%; background: linear-gradient(90deg,#ef4444,#f59e0b);" id="changeBar"></div>
+        </div>
+      </div>
+
+      <div class="glass specular col-span-6 lg:col-span-4 p-5 md:p-6 cursor-pointer" onclick="openP0RiskDetail()" title="点击查看P0风险详情">
+        <div class="flex items-center justify-between">
+          <span class="section-sub">P0 风险</span>
+          <span class="chip chip-warn">需关注</span>
+        </div>
+        <div class="mt-3 flex items-baseline gap-3">
+          <div class="text-4xl font-semibold t-primary count-up" id="emergencyCount">1</div>
+          <div class="text-sm t-secondary">条紧急求助 · 5 条系统性 Bug 集群</div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mt-4">
+          <div class="mini-card text-center clickable" onclick="filterByPriority('P0')" title="点击查看P0帖子">
+            <div class="text-xs t-tertiary">P0</div>
+            <div class="text-xl font-semibold t-danger mt-1">6</div>
+          </div>
+          <div class="mini-card text-center clickable" onclick="filterByPriority('P1')" title="点击查看P1帖子">
+            <div class="text-xs t-tertiary">P1</div>
+            <div class="text-xl font-semibold t-warn mt-1">181</div>
+          </div>
+          <div class="mini-card text-center clickable" onclick="filterByPriority('P2')" title="点击查看P2帖子">
+            <div class="text-xs t-tertiary">P2</div>
+            <div class="text-xl font-semibold t-info mt-1">127</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Trend + Sentiment -->
+    <section class="grid grid-cols-12 gap-5 md:gap-6 mb-6">
+      <div class="glass col-span-12 lg:col-span-7 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">TREND &amp; ANOMALY</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">趋势与异常检测</h2>
+          </div>
+          <div class="flex flex-wrap gap-2 justify-end">
+            <span class="chip chip-danger chip-clickable" onclick="highlightTrendSeries('Bug / 系统异常')" title="点击高亮Bug系列">Bug 突增 +17.9%</span>
+            <span class="chip chip-warn chip-clickable" onclick="highlightTrendSeries('Excel数据')" title="点击高亮Excel系列">Excel 突增 +33.3%</span>
+          </div>
+        </div>
+        <div id="trendChart" style="width: 100%; height: 320px;"></div>
+        <div class="mt-4 text-sm t-secondary leading-relaxed">
+          6/22 起整体帖量进入高位（&gt;70/日），6/24 Bug 类问题创周期峰值
+          <span class="t-danger font-medium">33 条</span>，存在功能集中爆发迹象；6/25
+          数据为采集中（仅含上半日），不参与异常判定。
+        </div>
+      </div>
+
+      <div class="glass col-span-12 md:col-span-6 lg:col-span-5 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <div class="section-sub">SENTIMENT</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">情绪与用户体验</h2>
+          </div>
+          <span class="chip chip-danger">消极主导</span>
+        </div>
+
+        <div class="flex items-center gap-6">
+          <div id="sentimentChart" style="width: 180px; height: 180px; cursor: pointer;" title="点击扇区查看详情"></div>
+          <div class="flex-1 space-y-3">
+            <div class="sentiment-bar-item cursor-pointer" onclick="highlightSentiment('消极')" title="点击查看消极情绪详情">
+              <div class="flex justify-between text-sm">
+                <span class="t-primary"><span class="inline-block w-2 h-2 rounded-full mr-2 align-middle" style="background:#ef4444"></span>消极</span>
+                <span class="t-secondary">160 · 51.0%</span>
+              </div>
+              <div class="bar-track mt-1"><div class="bar-fill" style="width:51%; background:linear-gradient(90deg,#ef4444,#f87171)"></div></div>
+            </div>
+            <div class="sentiment-bar-item cursor-pointer" onclick="highlightSentiment('中性')" title="点击查看中性情绪详情">
+              <div class="flex justify-between text-sm">
+                <span class="t-primary"><span class="inline-block w-2 h-2 rounded-full mr-2 align-middle" style="background:#8b5cf6"></span>中性</span>
+                <span class="t-secondary">150 · 47.8%</span>
+              </div>
+              <div class="bar-track mt-1"><div class="bar-fill" style="width:47.8%; background:linear-gradient(90deg,#8b5cf6,#a78bfa)"></div></div>
+            </div>
+            <div class="sentiment-bar-item cursor-pointer" onclick="highlightSentiment('积极')" title="点击查看积极情绪详情">
+              <div class="flex justify-between text-sm">
+                <span class="t-primary"><span class="inline-block w-2 h-2 rounded-full mr-2 align-middle" style="background:#10b981"></span>积极</span>
+                <span class="t-secondary">3 · 1.0%</span>
+              </div>
+              <div class="bar-track mt-1"><div class="bar-fill" style="width:6%; background:linear-gradient(90deg,#10b981,#34d399)"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 text-sm t-secondary leading-relaxed">
+          消极情绪连续 4 日 ≥ 40 条，主要驱动来自
+          <span class="t-danger cursor-pointer" onclick="filterByCategory('Bug / 系统异常')" style="text-decoration: underline;">Bug / 系统异常</span>（占消极 53%），其次为
+          <span class="t-warn cursor-pointer" onclick="filterByCategory('RPA执行问题')" style="text-decoration: underline;">RPA 执行问题</span>。
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Issue Breakdown + Priority -->
+    <section class="grid grid-cols-12 gap-5 md:gap-6 mb-6">
+      <div class="glass col-span-12 lg:col-span-7 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">ISSUE BREAKDOWN</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">问题结构分析</h2>
+          </div>
+          <span class="chip">Top 6 类别</span>
+        </div>
+        <div id="categoryChart" style="width:100%; height: 320px;"></div>
+      </div>
+
+      <div class="glass col-span-12 lg:col-span-5 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">PRIORITY</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">问题优先级分布</h2>
+          </div>
+          <span class="chip chip-warn">P1 占比偏高</span>
+        </div>
+
+        <div class="space-y-4">
+          <div class="mini-card clickable highlight-pulse-target" onclick="filterByPriority('P0')" title="点击查看P0帖子">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="badge-p0 px-2.5 py-1 rounded-lg text-xs font-semibold">P0</span>
+                <div>
+                  <div class="font-medium t-primary">系统不可用 / 大面积 / 紧急求助</div>
+                  <div class="text-xs t-tertiary mt-0.5">登录失败、批量数据抓取BUG、多电脑元素错位</div>
+                </div>
+              </div>
+              <div class="text-2xl font-semibold t-danger">6</div>
+            </div>
+            <div class="bar-track mt-3"><div class="bar-fill" style="width:6%; background:linear-gradient(90deg,#ef4444,#f87171)"></div></div>
+          </div>
+
+          <div class="mini-card clickable" onclick="filterByPriority('P1')" title="点击查看P1帖子">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="badge-p1 px-2.5 py-1 rounded-lg text-xs font-semibold">P1</span>
+                <div>
+                  <div class="font-medium t-primary">功能异常但可绕过</div>
+                  <div class="text-xs t-tertiary mt-0.5">Bug / 系统异常 + RPA执行 + Excel + 第三方</div>
+                </div>
+              </div>
+              <div class="text-2xl font-semibold t-warn">181</div>
+            </div>
+            <div class="bar-track mt-3"><div class="bar-fill" style="width:57.6%; background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div></div>
+          </div>
+
+          <div class="mini-card clickable" onclick="filterByPriority('P2')" title="点击查看P2帖子">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="badge-p2 px-2.5 py-1 rounded-lg text-xs font-semibold">P2</span>
+                <div>
+                  <div class="font-medium t-primary">咨询 / 使用问题</div>
+                  <div class="text-xs t-tertiary mt-0.5">功能咨询、新手入门、闲聊讨论</div>
+                </div>
+              </div>
+              <div class="text-2xl font-semibold t-info">127</div>
+            </div>
+            <div class="bar-track mt-3"><div class="bar-fill" style="width:40.4%; background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: Root Cause + Business Insight -->
+    <section class="grid grid-cols-12 gap-5 md:gap-6 mb-6">
+      <div class="glass col-span-12 lg:col-span-6 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">ROOT CAUSE</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">根因分析（语义聚类）</h2>
+          </div>
+          <span class="chip chip-info">4 个高频簇</span>
+        </div>
+
+        <div class="space-y-3" id="clusterList">
+          <div class="mini-card clickable cluster-item" onclick="toggleClusterDetail(0)" data-cluster="0">
+            <div class="flex items-center justify-between">
+              <div class="font-medium t-primary">① 元素定位 / 元素错位</div>
+              <span class="chip chip-danger">42 条 · 13.4%</span>
+            </div>
+            <div class="text-xs t-secondary mt-2 leading-relaxed cluster-detail">
+              关键词：<span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('元素错位')" style="font-size:11px;">元素错位</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('多账号偏移')" style="font-size:11px;">多账号偏移</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('xpath')" style="font-size:11px;">xpath</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('iframe')" style="font-size:11px;">iframe</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('懒加载')" style="font-size:11px;">懒加载</span><br/>
+              <span class="t-primary font-medium">可能原因：</span>近期发版引入 DOM 兼容性回归，跨账号/浏览器渲染差异未覆盖；与谷歌内核新版本相关。<br/>
+              <span class="t-primary font-medium">建议：</span>回归覆盖：多账号、Chrome新版、iframe、懒加载四类场景。
+            </div>
+          </div>
+
+          <div class="mini-card clickable cluster-item" onclick="toggleClusterDetail(1)" data-cluster="1">
+            <div class="flex items-center justify-between">
+              <div class="font-medium t-primary">② Excel 指令稳定性</div>
+              <span class="chip chip-warn">28 条 · 8.9%</span>
+            </div>
+            <div class="text-xs t-secondary mt-2 leading-relaxed cluster-detail">
+              关键词：<span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('小绿标')" style="font-size:11px;">小绿标</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('数据透视表')" style="font-size:11px;">数据透视表</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('公式失效')" style="font-size:11px;">公式失效</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('对象已关闭')" style="font-size:11px;">对象已关闭</span><br/>
+              <span class="t-primary font-medium">可能原因：</span>Excel 指令集与 Office 365 新版兼容性问题，对象生命周期管理在并发场景下异常。<br/>
+              <span class="t-primary font-medium">建议：</span>锁定 Excel 兼容性专项，覆盖 Office 365 各版本。
+            </div>
+          </div>
+
+          <div class="mini-card clickable cluster-item" onclick="toggleClusterDetail(2)" data-cluster="2">
+            <div class="flex items-center justify-between">
+              <div class="font-medium t-primary">③ 第三方平台对接</div>
+              <span class="chip chip-warn">28 条 · 8.9%</span>
+            </div>
+            <div class="text-xs t-secondary mt-2 leading-relaxed cluster-detail">
+              关键词：<span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('飞书')" style="font-size:11px;">飞书</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('钉钉多维表')" style="font-size:11px;">钉钉多维表</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('wps')" style="font-size:11px;">wps</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('紫鸟')" style="font-size:11px;">紫鸟</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('千牛')" style="font-size:11px;">千牛</span><br/>
+              <span class="t-primary font-medium">可能原因：</span>外部平台 API 变更（403/数据异常）+ 浏览器登录会话被频繁踢出，非平台自身缺陷，但需补充故障告警。<br/>
+              <span class="t-primary font-medium">建议：</span>建立每日健康巡检，明确区分"外部异常"与"影刀异常"。
+            </div>
+          </div>
+
+          <div class="mini-card clickable cluster-item" onclick="toggleClusterDetail(3)" data-cluster="3">
+            <div class="flex items-center justify-between">
+              <div class="font-medium t-primary">④ 触发与登录稳定性</div>
+              <span class="chip chip-danger">17 条 · 5.4%</span>
+            </div>
+            <div class="text-xs t-secondary mt-2 leading-relaxed cluster-detail">
+              关键词：<span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('定时触发失败')" style="font-size:11px;">定时触发失败</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('登录不上')" style="font-size:11px;">登录不上</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('网页白屏')" style="font-size:11px;">网页白屏</span>
+              <span class="chip chip-clickable" onclick="event.stopPropagation(); searchKeyword('日期参数')" style="font-size:11px;">日期参数</span><br/>
+              <span class="t-primary font-medium">可能原因：</span>调度服务在峰值时段出现失败，疑似与近一周后端版本相关，需 SRE 排查。<br/>
+              <span class="t-primary font-medium">建议：</span>SRE 排查调度后端峰值时段性能瓶颈。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass col-span-12 lg:col-span-6 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">BUSINESS INSIGHT</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">关键业务洞察</h2>
+          </div>
+          <span class="chip chip-info">5 条可执行结论</span>
+        </div>
+
+        <div class="space-y-3" id="insightList">
+          <!-- Insights will be rendered by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: Risk Alert + Hot Posts -->
+    <section class="grid grid-cols-12 gap-5 md:gap-6 mb-6">
+      <div class="glass risk-card col-span-12 lg:col-span-7 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="pulse-dot" id="riskPulseDot"></span>
+            <div>
+              <div class="section-sub" style="color:#b91c1c">RISK ALERT</div>
+              <h2 class="section-title text-xl md:text-2xl mt-1">风险提示</h2>
+            </div>
+          </div>
+          <span class="chip chip-danger">是 · 需紧急处理</span>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-3" id="alertGrid">
+          <!-- Alerts rendered by JS -->
+        </div>
+
+        <div class="mt-5 text-sm t-secondary leading-relaxed">
+          <span class="font-medium t-danger">系统性风险判定：是。</span>
+          建议立刻拉起跨研发-产品-客服三方应急例会，并在 48 小时内向客户发出官方告知。
+        </div>
+      </div>
+
+      <div class="glass col-span-12 lg:col-span-5 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">HOT POSTS</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">高浏览帖 TOP 8</h2>
+          </div>
+          <span class="chip">舆论焦点</span>
+        </div>
+        <div class="space-y-2" id="hotPostList">
+          <!-- Hot posts rendered by JS -->
+        </div>
+      </div>
+    </section>
+
+    </div><!-- end dashboard page -->
+
+    <!-- ==================== TRENDS PAGE ==================== -->
+    <div class="page-section" id="page-trends">
+      <header class="mb-8">
+        <h1 class="text-3xl md:text-4xl font-semibold tracking-tight t-primary">📈 趋势分析</h1>
+        <p class="t-secondary mt-2">详细的每日帖子量趋势与异常检测分析</p>
+      </header>
+      <div class="glass p-6 md:p-8 mb-6">
+        <h2 class="section-title text-xl mb-4">帖子量趋势（完整视图）</h2>
+        <div id="trendChartLarge" style="width:100%; height: 420px;"></div>
+        <div class="mt-4 text-sm t-secondary">
+          本页展示完整的趋势数据。可拖拽底部滑块缩放时间范围，或使用鼠标滚轮放大/缩小。
+          点击图例可切换系列显示。
+        </div>
+      </div>
+      <div class="grid md:grid-cols-2 gap-5">
+        <div class="glass p-6" style="text-align:center; padding:60px 40px;">
+          <div style="font-size:48px; margin-bottom:16px;">🔬</div>
+          <h3 class="section-title text-lg mb-2">异常检测详情</h3>
+          <p class="text-sm t-secondary">此区域将展示详细异常判定日志与历史对比数据。<br/>功能开发中，敬请期待...</p>
+        </div>
+        <div class="glass p-6" style="text-align:center; padding:60px 40px;">
+          <div style="font-size:48px; margin-bottom:16px;">📊</div>
+          <h3 class="section-title text-lg mb-2">对比分析</h3>
+          <p class="text-sm t-secondary">支持按周/月/季度对比，识别周期性规律。<br/>功能开发中，敬请期待...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== ISSUES PAGE ==================== -->
+    <div class="page-section" id="page-issues">
+      <header class="mb-8">
+        <h1 class="text-3xl md:text-4xl font-semibold tracking-tight t-primary">🔍 问题分析</h1>
+        <p class="t-secondary mt-2">深入分析问题分类、根因聚类与优先级分布</p>
+      </header>
+      <div class="grid md:grid-cols-2 gap-5 mb-6">
+        <div class="glass p-6 md:p-8">
+          <h2 class="section-title text-xl mb-4">问题分类分布</h2>
+          <div id="categoryChartLarge" style="width:100%; height: 380px;"></div>
+        </div>
+        <div class="glass p-6 md:p-8" id="issuesRootCauseContainer">
+          <h2 class="section-title text-xl mb-4">根因分析（详细）</h2>
+          <div class="space-y-3" id="clusterListDetailed"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== RISK PAGE ==================== -->
+    <div class="page-section" id="page-risk">
+      <header class="mb-8">
+        <h1 class="text-3xl md:text-4xl font-semibold tracking-tight t-primary">⚠️ 风险中心</h1>
+        <p class="t-secondary mt-2">全量告警列表、处理工作流与风险管理</p>
+      </header>
+      <div class="glass risk-card p-6 md:p-8 mb-6">
+        <div class="flex items-center gap-3 mb-4">
+          <span class="pulse-dot"></span>
+          <h2 class="section-title text-xl">活跃告警列表</h2>
+        </div>
+        <div class="space-y-3" id="allAlertsList"></div>
+      </div>
+    </div>
+
+    <!-- ==================== POSTS PAGE ==================== -->
+    <div class="page-section" id="page-posts">
+      <header class="mb-8">
+        <h1 class="text-3xl md:text-4xl font-semibold tracking-tight t-primary">📋 帖子管理</h1>
+        <p class="t-secondary mt-2">浏览、搜索与管理所有社区帖子</p>
+      </header>
+      <div class="glass p-6 md:p-8 mb-6">
+        <div class="flex flex-wrap gap-3 mb-6 items-center">
+          <input type="text" id="postSearchInput" placeholder="🔍 搜索帖子标题..."
+                 class="px-4 py-2 rounded-xl border border-slate-200 text-sm flex-1 min-w-[200px]"
+                 style="outline: none; background: rgba(255,255,255,0.6);"
+                 onkeyup="if(event.key==='Enter') searchPosts(this.value)">
+          <select id="categoryFilter" onchange="searchPosts()"
+                  class="px-4 py-2 rounded-xl border border-slate-200 text-sm" style="background: rgba(255,255,255,0.6); outline:none;">
+            <option value="">全部类别</option>
+            <option value="Bug / 系统异常">Bug / 系统异常</option>
+            <option value="功能咨询">功能咨询</option>
+            <option value="RPA执行问题">RPA执行问题</option>
+            <option value="Excel数据问题">Excel数据问题</option>
+            <option value="第三方系统问题">第三方系统问题</option>
+            <option value="紧急求助">紧急求助</option>
+          </select>
+          <select id="priorityFilter" onchange="searchPosts()"
+                  class="px-4 py-2 rounded-xl border border-slate-200 text-sm" style="background: rgba(255,255,255,0.6); outline:none;">
+            <option value="">全部优先级</option>
+            <option value="P0">P0</option>
+            <option value="P1">P1</option>
+            <option value="P2">P2</option>
+          </select>
+          <select id="sentimentFilter" onchange="searchPosts()"
+                  class="px-4 py-2 rounded-xl border border-slate-200 text-sm" style="background: rgba(255,255,255,0.6); outline:none;">
+            <option value="">全部情绪</option>
+            <option value="消极">消极</option>
+            <option value="中性">中性</option>
+            <option value="积极">积极</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="searchPosts()">🔍 搜索</button>
+          <button class="btn btn-outline btn-sm" onclick="exportPosts()">📥 导出CSV</button>
+          <span class="text-xs t-tertiary" id="postResultCount"></span>
+        </div>
+        <div id="postsTableContainer" class="overflow-x-auto"></div>
+        <div class="flex justify-center gap-2 mt-4" id="paginationContainer"></div>
+      </div>
+    </div>
+
+    <footer class="text-center text-xs t-tertiary mt-10 pb-6">
+      <div>© 2026 Community Operations Intelligence · Generated from 314 records · Liquid Glass × Bento Grid</div>
+      <div class="mt-1">最后刷新时间: <span id="lastRefreshTime">2026-06-25 14:30:00</span></div>
+    </footer>
+  </main>
+
+  <!-- Modal overlay (hidden by default) -->
+  <div class="modal-overlay" id="modalOverlay" style="display:none;" onclick="closeModal(event)">
+    <div class="modal-content" id="modalContent" onclick="event.stopPropagation()">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold t-primary" id="modalTitle">详情</h3>
+        <span class="chip chip-clickable" onclick="closeModal()" style="font-size:18px;">✕</span>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+<script>
+// ============================================================
+//  MOCK DATA
+// ============================================================
+const mockPosts = [
+  { id:1, title:'多台电脑反复出现元素错位', category:'Bug / 系统异常', sentiment:'消极', view_count:337, priority:'P0', author:'用户A', created_at:'2026-06-24', content:'多台电脑上运行影刀时出现元素定位错位问题...' },
+  { id:2, title:'是否喜欢 RPA 数据自动化工作', category:'功能咨询', sentiment:'中性', view_count:295, priority:'P2', author:'用户B', created_at:'2026-06-24', content:'讨论RPA自动化相关工作体验...' },
+  { id:3, title:'这周离职又要找工作', category:'功能咨询', sentiment:'消极', view_count:279, priority:'P2', author:'用户C', created_at:'2026-06-23', content:'分享工作变动经历...' },
+  { id:4, title:'我真是 chovy 了影刀', category:'功能咨询', sentiment:'消极', view_count:278, priority:'P2', author:'用户D', created_at:'2026-06-23', content:'表达对影刀产品的复杂情感...' },
+  { id:5, title:'你们面试需要机考吗', category:'功能咨询', sentiment:'中性', view_count:276, priority:'P2', author:'用户E', created_at:'2026-06-22', content:'询问面试流程...' },
+  { id:6, title:'影刀社区官方似乎没有维护', category:'功能咨询', sentiment:'消极', view_count:275, priority:'P2', author:'用户F', created_at:'2026-06-24', content:'关注社区维护状态...' },
+  { id:7, title:'很多公司跟影刀合作', category:'功能咨询', sentiment:'中性', view_count:272, priority:'P2', author:'用户G', created_at:'2026-06-22', content:'讨论影刀商业合作...' },
+  { id:8, title:'学习影刀为什么要学 python', category:'功能咨询', sentiment:'中性', view_count:232, priority:'P2', author:'用户H', created_at:'2026-06-21', content:'讨论影刀与Python的关系...' },
+  { id:9, title:'批量数据抓取 BUG：抓单列变成抓一行', category:'Bug / 系统异常', sentiment:'消极', view_count:210, priority:'P0', author:'用户I', created_at:'2026-06-24', content:'数据抓取出现严重BUG...' },
+  { id:10, title:'定时触发失败 / 登录不上', category:'Bug / 系统异常', sentiment:'消极', view_count:185, priority:'P1', author:'用户J', created_at:'2026-06-23', content:'定时任务执行失败...' },
+  { id:11, title:'Excel 指令兼容性问题', category:'Excel数据问题', sentiment:'消极', view_count:165, priority:'P1', author:'用户K', created_at:'2026-06-24', content:'Excel小绿标、透视表等功能异常...' },
+  { id:12, title:'飞书集成数据异常', category:'第三方系统问题', sentiment:'消极', view_count:145, priority:'P1', author:'用户L', created_at:'2026-06-23', content:'飞书API返回403错误...' },
+  { id:13, title:'RPA执行超时问题集中反馈', category:'RPA执行问题', sentiment:'消极', view_count:130, priority:'P1', author:'用户M', created_at:'2026-06-22', content:'多用户反馈RPA执行超时...' },
+  { id:14, title:'新手求教：xpath怎么写', category:'功能咨询', sentiment:'中性', view_count:120, priority:'P2', author:'用户N', created_at:'2026-06-21', content:'xpath编写求助...' },
+  { id:15, title:'多账号切换后元素偏移', category:'Bug / 系统异常', sentiment:'消极', view_count:115, priority:'P0', author:'用户O', created_at:'2026-06-25', content:'切换账号后元素定位偏移...' },
+];
+
+const mockAlerts = [
+  { id:1, title:'多电脑反复出现元素错位', priority:'P0', description:'浏览量337（周期最高），跨账号复现，已具备系统性风险。', is_systemic:true, status:'active' },
+  { id:2, title:'批量数据抓取 BUG：抓单列变成抓一行', priority:'P0', description:'影响数据正确性，对生产链路冲击大，需立刻 hotfix。', is_systemic:true, status:'active' },
+  { id:3, title:'定时触发失败 / 登录不上', priority:'P1', description:'多个独立反馈，疑似调度后端在峰值时段抖动。', is_systemic:false, status:'active' },
+  { id:4, title:'Excel 指令兼容性（小绿标 / 透视表 / 对象关闭）', priority:'P1', description:'28 条聚集，建议本迭代锁定 Excel 兼容性专项。', is_systemic:false, status:'active' },
+];
+
+const mockInsights = [
+  { index:1, title:'Bug 类问题进入爆发期，需立刻冻结非必要发版', impact:'消极情绪 51%，已显著超过预警线（35%）。', suggestion:'组织 RPA 引擎 + 浏览器适配专项 hotfix，48 小时内合入。', severity:'critical', color:'#ef4444' },
+  { index:2, title:'"元素错位 / 多账号偏移" 已具备系统性特征', impact:'覆盖 42 个独立反馈，跨多个用户与电脑。', suggestion:'作为 P0 缺陷立项，回归覆盖：多账号、Chrome 新版、iframe、懒加载四类场景。', severity:'critical', color:'#f59e0b' },
+  { index:3, title:'第三方平台问题非自身缺陷，但用户体感等同 Bug', impact:'外部 API 变更影响多个平台用户。', suggestion:'在指令运行结果中明确区分"外部平台异常"与"影刀异常"，对飞书/钉钉/wps/千牛建立每日健康巡检。', severity:'medium', color:'#8b5cf6' },
+  { index:4, title:'功能咨询占 32.8%，社区自助内容力不足', impact:'Top 浏览帖多为情感/求职话题，技术咨询长尾分散。', suggestion:'将高频 P2（如 xpath 写法、Excel 透视表、定时触发）固化为"问答 + 示例工程"知识库入口。', severity:'medium', color:'#3b82f6' },
+  { index:5, title:'"社区官方维护缺位" 的负面舆论已显现', impact:'相关帖浏览量进入 Top 10，可能持续发酵。', suggestion:'建立官方响应 SLA（24h 内首次回复），并在 P0/P1 帖子下置顶官方进展。', severity:'medium', color:'#10b981' },
+];
+
+// ============================================================
+//  UTILITY FUNCTIONS
+// ============================================================
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  toast.onclick = () => toast.remove();
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function openModal(title, bodyHTML) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHTML;
+  const overlay = document.getElementById('modalOverlay');
+  overlay.style.display = 'flex';
+  overlay.classList.remove('closing');
+  document.getElementById('modalContent').classList.remove('closing');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(event) {
+  if (event && event.target !== document.getElementById('modalOverlay')) return;
+  const overlay = document.getElementById('modalOverlay');
+  overlay.classList.add('closing');
+  document.getElementById('modalContent').classList.add('closing');
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    document.body.style.overflow = '';
+  }, 250);
+}
+
+function toggleDropdown() {
+  document.getElementById('userDropdown').classList.toggle('show');
+}
+
+function closeDropdown() {
+  document.getElementById('userDropdown').classList.remove('show');
+}
+
+function toggleMobileMenu() {
+  document.getElementById('mobileMenu').classList.toggle('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dropdown-container')) {
+    closeDropdown();
+  }
+});
+
+// ============================================================
+//  THEME TOGGLE
+// ============================================================
+function toggleTheme() {
+  const isDark = document.body.classList.toggle('dark');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌓';
+  // Re-init charts to update colors
+  setTimeout(() => {
+    initTrendChart();
+    initSentimentChart();
+    initCategoryChart();
+    if (document.getElementById('page-trends').classList.contains('active')) {
+      initTrendChartLarge();
+    }
+    if (document.getElementById('page-issues').classList.contains('active')) {
+      initCategoryChartLarge();
+    }
+  }, 100);
+  showToast(isDark ? '已切换到暗色模式 🌙' : '已切换到亮色模式 ☀️', 'info');
+}
+
+// Load saved theme
+(function() {
+  if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+})();
+
+// ============================================================
+//  PAGE NAVIGATION
+// ============================================================
+function switchPage(page) {
+  // Update nav links
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.toggle('active', link.dataset.page === page);
+  });
+  // Hide all pages
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  // Show target page
+  const target = document.getElementById(`page-${page}`);
+  if (target) {
+    target.classList.add('active');
+    // Re-init charts in the page
+    setTimeout(() => {
+      if (page === 'trends') initTrendChartLarge();
+      if (page === 'issues') { initCategoryChartLarge(); renderClusterListDetailed(); }
+      if (page === 'risk') renderAllAlerts();
+      if (page === 'posts') { renderPostsTable(); updatePostCount(); }
+      window.dispatchEvent(new Event('resize'));
+    }, 100);
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============================================================
+//  DATA REFRESH
+// ============================================================
+function refreshData() {
+  const btn = document.querySelector('.refresh-btn');
+  btn.classList.add('spinning');
+  showToast('正在刷新数据...', 'info');
+
+  // Simulate network delay
+  setTimeout(() => {
+    btn.classList.remove('spinning');
+    document.getElementById('lastRefreshTime').textContent = new Date().toLocaleString('zh-CN');
+    // Subtle random variation for demo
+    const healthScore = document.getElementById('healthScore');
+    const variation = Math.floor(Math.random() * 5) - 2;
+    healthScore.textContent = Math.max(0, Math.min(100, 45 + variation));
+    showToast('数据刷新完成 ✅', 'success');
+    window.dispatchEvent(new Event('resize'));
+  }, 800);
+}
+
+// ============================================================
+//  DATE PICKER
+// ============================================================
+function openDatePicker() {
+  const body = `
+    <div class="space-y-3">
+      <p class="text-sm t-secondary">选择数据周期范围：</p>
+      <div class="grid grid-cols-2 gap-2">
+        <div><label class="text-xs t-tertiary">开始日期</label>
+          <input type="date" id="dpStart" value="2026-06-20" class="w-full px-3 py-2 rounded-xl border text-sm mt-1" style="outline:none;background:rgba(255,255,255,0.6);"></div>
+        <div><label class="text-xs t-tertiary">结束日期</label>
+          <input type="date" id="dpEnd" value="2026-06-25" class="w-full px-3 py-2 rounded-xl border text-sm mt-1" style="outline:none;background:rgba(255,255,255,0.6);"></div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <span class="chip chip-clickable" onclick="setDateRange(7)">最近 7 天</span>
+        <span class="chip chip-clickable" onclick="setDateRange(30)">最近 30 天</span>
+        <span class="chip chip-clickable" onclick="setDateRange(-1)">本月</span>
+        <span class="chip chip-clickable" onclick="setDateRange(-2)">上月</span>
+      </div>
+      <button class="btn btn-primary btn-sm mt-3" onclick="applyDateRange()">✅ 应用并刷新</button>
+    </div>`;
+  openModal('📅 数据周期设置', body);
+}
+
+function setDateRange(days) {
+  const end = new Date('2026-06-25');
+  let start;
+  if (days === -1) start = new Date('2026-06-01'); // 本月
+  else if (days === -2) start = new Date('2026-05-01'); // 上月
+  else start = new Date(end.getTime() - days * 86400000);
+  document.getElementById('dpStart').value = start.toISOString().split('T')[0];
+  document.getElementById('dpEnd').value = end.toISOString().split('T')[0];
+}
+
+function applyDateRange() {
+  const start = document.getElementById('dpStart').value;
+  const end = document.getElementById('dpEnd').value;
+  document.getElementById('dateRangeDisplay').textContent = `${start.replace(/-/g,'/')} — ${end.replace(/-/g,'/')}`;
+  closeModal();
+  showToast(`数据周期已更新: ${start} → ${end}`, 'success');
+  refreshData();
+}
+
+// ============================================================
+//  MODAL CONTENT RENDERERS
+// ============================================================
+function openHealthDetail() {
+  const body = `
+    <div class="space-y-4">
+      <div class="flex items-center gap-4">
+        <div style="width:100px;height:100px;border-radius:50%;background:conic-gradient(#ef4444 0deg 162deg, #f59e0b 162deg 216deg, #f97316 216deg 270deg, #10b981 270deg 360deg);"></div>
+        <div>
+          <div class="text-3xl font-bold t-danger">45 / 100</div>
+          <div class="text-sm t-secondary">高风险状态</div>
+        </div>
+      </div>
+      <div class="p-3 rounded-xl" style="background:rgba(254,226,226,0.5);">
+        <strong class="t-danger">⚠️ 扣分项分析：</strong>
+        <ul class="text-sm mt-2 space-y-1 t-secondary">
+          <li>• Bug 占比 34.7% → <span class="t-danger">-13.9 分</span> (权重 40%)</li>
+          <li>• 消极情绪 51.0% → <span class="t-danger">-17.9 分</span> (权重 35%)</li>
+          <li>• P0 数量 6 → <span class="t-danger">-9.0 分</span> (权重 15%)</li>
+          <li>• 异常信号数 → <span class="t-warn">-4.2 分</span> (权重 10%)</li>
+        </ul>
+      </div>
+      <p class="text-sm t-secondary">建议：立即进入预警状态，冻结非必要发版，组织专项 hotfix。</p>
+    </div>`;
+  openModal('💚 健康度详情', body);
+}
+
+function openDailyComparison() {
+  const body = `
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <span class="text-sm t-secondary">6/23 (昨日)</span>
+        <span class="text-lg font-semibold">28 条 Bug 类</span>
+      </div>
+      <div class="flex items-center gap-2 text-2xl font-bold t-danger">
+        <span>→</span><span>33 条 (+17.9%)</span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-sm t-secondary">6/24 (今日)</span>
+        <span class="text-lg font-semibold">33 条 Bug 类</span>
+      </div>
+      <div class="bar-track mt-3"><div class="bar-fill" style="width:72%;background:linear-gradient(90deg,#ef4444,#f59e0b);"></div></div>
+      <p class="text-sm t-secondary">Bug 类问题在 6/24 达到周期峰值，主要驱动因素为"元素错位"类问题集中爆发。</p>
+    </div>`;
+  openModal('📊 日环比详情', body);
+}
+
+function openP0RiskDetail() {
+  const p0Posts = mockPosts.filter(p => p.priority === 'P0');
+  const rows = p0Posts.map(p => `
+    <div class="mini-card flex items-center justify-between">
+      <div>
+        <div class="font-medium t-primary text-sm">${p.title}</div>
+        <div class="text-xs t-tertiary">${p.category} · ${p.sentiment} · 浏览量 ${p.view_count}</div>
+      </div>
+      <span class="badge-p0 px-2 py-0.5 rounded-md text-xs">P0</span>
+    </div>`).join('');
+  const body = `
+    <div class="space-y-3">
+      <p class="text-sm t-secondary">当前共有 <span class="t-danger font-semibold">${p0Posts.length}</span> 条 P0 级别问题，其中紧急求助 1 条，系统性 Bug 集群 5 条。</p>
+      ${rows}
+    </div>`;
+  openModal('🚨 P0 风险详情', body);
+}
+
+function openPostDetail(postId) {
+  const post = mockPosts.find(p => p.id === postId) || mockPosts[0];
+  const sentimentColor = post.sentiment === '消极' ? 't-danger' : post.sentiment === '积极' ? 't-ok' : 't-info';
+  const priorityBadge = post.priority === 'P0' ? 'badge-p0' : post.priority === 'P1' ? 'badge-p1' : 'badge-p2';
+  const body = `
+    <div class="space-y-4">
+      <h3 class="text-xl font-semibold t-primary">${post.title}</h3>
+      <div class="flex flex-wrap gap-2">
+        <span class="chip">📂 ${post.category}</span>
+        <span class="chip ${sentimentColor === 't-danger' ? 'chip-danger' : sentimentColor === 't-ok' ? 'chip-ok' : ''}">😐 ${post.sentiment}</span>
+        <span class="${priorityBadge} px-2.5 py-1 rounded-lg text-xs font-semibold">${post.priority}</span>
+        <span class="chip">👁 ${post.view_count} 浏览</span>
+      </div>
+      <div class="text-sm t-secondary">
+        <div>👤 作者：${post.author}</div>
+        <div>📅 发布于：${post.created_at}</div>
+      </div>
+      <div class="p-4 rounded-xl text-sm t-secondary" style="background:rgba(241,245,249,0.5);">
+        ${post.content}
+      </div>
+      <div class="flex gap-2">
+        <button class="btn btn-outline btn-sm" onclick="showToast('已复制帖子链接', 'success')">🔗 复制链接</button>
+        <button class="btn btn-outline btn-sm" onclick="showToast('功能开发中', 'info')">⭐ 收藏</button>
+      </div>
+    </div>`;
+  openModal(`📝 帖子详情 #${post.id}`, body);
+}
+
+// ============================================================
+//  FILTERING & SEARCH
+// ============================================================
+function filterByCategory(category) {
+  switchPage('posts');
+  setTimeout(() => {
+    document.getElementById('categoryFilter').value = category;
+    searchPosts();
+  }, 200);
+}
+
+function filterByPriority(priority) {
+  switchPage('posts');
+  setTimeout(() => {
+    document.getElementById('priorityFilter').value = priority;
+    searchPosts();
+  }, 200);
+}
+
+function filterByMetric(metric) {
+  showToast(`已选择指标: ${metric}。切换到帖子列表查看...`, 'info');
+  switchPage('posts');
+}
+
+function searchKeyword(keyword) {
+  switchPage('posts');
+  setTimeout(() => {
+    document.getElementById('postSearchInput').value = keyword;
+    searchPosts();
+  }, 200);
+}
+
+function searchPosts(keyword) {
+  const kw = keyword || document.getElementById('postSearchInput')?.value || '';
+  const cat = document.getElementById('categoryFilter')?.value || '';
+  const pri = document.getElementById('priorityFilter')?.value || '';
+  const sent = document.getElementById('sentimentFilter')?.value || '';
+
+  let filtered = mockPosts;
+  if (kw) filtered = filtered.filter(p => p.title.includes(kw) || p.content.includes(kw));
+  if (cat) filtered = filtered.filter(p => p.category === cat);
+  if (pri) filtered = filtered.filter(p => p.priority === pri);
+  if (sent) filtered = filtered.filter(p => p.sentiment === sent);
+
+  currentFilteredPosts = filtered;
+  currentPostPage = 1;
+  renderPostsTable();
+  updatePostCount();
+}
+
+let currentFilteredPosts = [...mockPosts];
+let currentPostPage = 1;
+const POSTS_PER_PAGE = 8;
+
+function updatePostCount() {
+  const el = document.getElementById('postResultCount');
+  if (el) el.textContent = `共 ${currentFilteredPosts.length} 条结果`;
+}
+
+function renderPostsTable() {
+  const container = document.getElementById('postsTableContainer');
+  if (!container) return;
+  const start = (currentPostPage - 1) * POSTS_PER_PAGE;
+  const page = currentFilteredPosts.slice(start, start + POSTS_PER_PAGE);
+  const totalPages = Math.ceil(currentFilteredPosts.length / POSTS_PER_PAGE);
+
+  const sentimentClass = (s) => s === '消极' ? 'chip-danger' : s === '积极' ? 'chip-ok' : '';
+  const priorityBadge = (p) => p === 'P0' ? 'badge-p0' : p === 'P1' ? 'badge-p1' : 'badge-p2';
+
+  container.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="border-bottom:1px solid rgba(148,163,184,0.2);">
+        <th style="padding:12px;text-align:left;font-size:12px;color:var(--t-tertiary);">ID</th>
+        <th style="padding:12px;text-align:left;font-size:12px;color:var(--t-tertiary);">标题</th>
+        <th style="padding:12px;text-align:left;font-size:12px;color:var(--t-tertiary);">分类</th>
+        <th style="padding:12px;text-align:left;font-size:12px;color:var(--t-tertiary);">情绪</th>
+        <th style="padding:12px;text-align:left;font-size:12px;color:var(--t-tertiary);">优先级</th>
+        <th style="padding:12px;text-align:right;font-size:12px;color:var(--t-tertiary);">浏览量</th>
+        <th style="padding:12px;text-align:left;font-size:12px;color:var(--t-tertiary);">日期</th>
+      </tr></thead>
+      <tbody>${page.map(p => `
+        <tr class="mini-card" style="display:table-row;cursor:pointer;border-bottom:1px solid rgba(148,163,184,0.08);" onclick="openPostDetail(${p.id})">
+          <td style="padding:12px;font-size:13px;color:var(--t-tertiary);">#${p.id}</td>
+          <td style="padding:12px;font-size:14px;font-weight:500;" class="t-primary">${p.title}</td>
+          <td style="padding:12px;font-size:13px;" class="t-secondary">${p.category}</td>
+          <td style="padding:12px;"><span class="chip ${sentimentClass(p.sentiment)}" style="font-size:11px;">${p.sentiment}</span></td>
+          <td style="padding:12px;"><span class="${priorityBadge(p.priority)} px-2 py-0.5 rounded-md text-[10px] font-semibold">${p.priority}</span></td>
+          <td style="padding:12px;text-align:right;font-weight:600;font-size:14px;" class="${p.view_count > 300 ? 't-danger' : 't-secondary'}">${p.view_count}</td>
+          <td style="padding:12px;font-size:12px;color:var(--t-tertiary);">${p.created_at}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+
+  // Pagination
+  const pagContainer = document.getElementById('paginationContainer');
+  if (pagContainer && totalPages > 1) {
+    let pagHTML = '';
+    for (let i = 1; i <= totalPages; i++) {
+      pagHTML += `<span class="chip chip-clickable ${i === currentPostPage ? 'chip-info' : ''}" onclick="currentPostPage=${i};renderPostsTable();">${i}</span>`;
+    }
+    pagContainer.innerHTML = pagHTML;
+  } else if (pagContainer) {
+    pagContainer.innerHTML = '';
+  }
+}
+
+// ============================================================
+//  EXPORT
+// ============================================================
+function exportDashboard() {
+  closeDropdown();
+  showToast('正在生成 PDF 报告，请稍候...', 'info');
+  setTimeout(() => showToast('📄 报告已生成并开始下载', 'success'), 1500);
+}
+
+function exportPosts() {
+  showToast('正在导出 CSV 文件...', 'info');
+  setTimeout(() => {
+    const csv = ['标题,分类,情绪,优先级,浏览量,日期'].concat(
+      currentFilteredPosts.map(p => `"${p.title}","${p.category}","${p.sentiment}","${p.priority}",${p.view_count},"${p.created_at}"`)
+    ).join('\n');
+    const blob = new Blob(['﻿' + csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'posts_export.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ CSV 导出完成', 'success');
+  }, 800);
+}
+
+// ============================================================
+//  COPY INSIGHT
+// ============================================================
+function copyInsight(index) {
+  const insight = mockInsights.find(i => i.index === index);
+  if (!insight) return;
+  const text = `【洞察 #${insight.index}】${insight.title}\n影响：${insight.impact}\n建议：${insight.suggestion}`;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('📋 洞察内容已复制到剪贴板', 'success');
+  }).catch(() => showToast('复制失败，请手动复制', 'error'));
+}
+
+// ============================================================
+//  CLUSTER TOGGLE
+// ============================================================
+function toggleClusterDetail(index) {
+  const items = document.querySelectorAll('.cluster-item');
+  const target = items[index];
+  if (!target) return;
+  const detail = target.querySelector('.cluster-detail');
+  if (!detail) return;
+  const isVisible = detail.style.display !== 'none';
+  if (isVisible) {
+    detail.style.display = 'none';
+  } else {
+    // Close all others
+    document.querySelectorAll('.cluster-detail').forEach(d => d.style.display = 'none');
+    detail.style.display = 'block';
+    target.classList.add('highlight-pulse');
+    setTimeout(() => target.classList.remove('highlight-pulse'), 600);
+  }
+}
+
+// Initialize: hide all cluster details except first
+setTimeout(() => {
+  document.querySelectorAll('.cluster-detail').forEach((d, i) => {
+    if (i > 0) d.style.display = 'none';
+  });
+}, 100);
+
+// ============================================================
+//  TREND SERIES HIGHLIGHT
+// ============================================================
+function highlightTrendSeries(name) {
+  if (!trendChartInstance) return;
+  const option = trendChartInstance.getOption();
+  const series = option.series || [];
+  const isAlreadyDimmed = series.some(s => s.silent === true);
+
+  series.forEach(s => {
+    if (s.name === name) {
+      s.lineStyle = { ...s.lineStyle, width: isAlreadyDimmed ? 3 : 4, shadowBlur: isAlreadyDimmed ? 0 : 10, shadowColor: s.itemStyle?.color || '#ef4444' };
+      s.silent = false;
+    } else {
+      s.silent = !isAlreadyDimmed;
+      s.lineStyle = { ...s.lineStyle, width: isAlreadyDimmed ? (s.lineStyle?.width || 2.5) : 1 };
+    }
+  });
+  trendChartInstance.setOption({ series });
+  if (!isAlreadyDimmed) {
+    showToast(`已高亮: ${name}（再次点击标签取消）`, 'info');
+    setTimeout(() => {
+      document.addEventListener('click', function resetHighlight(e) {
+        if (!e.target.closest('.chip-clickable')) {
+          series.forEach(s => { s.silent = false; s.lineStyle = { ...s.lineStyle, width: s.name === 'Bug / 系统异常' ? 3 : 2.5, shadowBlur: 0 }; });
+          trendChartInstance.setOption({ series });
+          document.removeEventListener('click', resetHighlight);
+        }
+      }, { once: true });
+    }, 100);
+  }
+}
+
+// ============================================================
+//  SENTIMENT HIGHLIGHT
+// ============================================================
+function highlightSentiment(name) {
+  if (!sentimentChartInstance) return;
+  showToast(`已选中: ${name}情绪。点击其他扇区或空白处取消。`, 'info');
+  sentimentChartInstance.dispatchAction({ type: 'highlight', name: name });
+  setTimeout(() => {
+    sentimentChartInstance.dispatchAction({ type: 'downplay', seriesIndex: 0 });
+  }, 2000);
+}
+
+// ============================================================
+//  RENDER INSIGHTS
+// ============================================================
+function renderInsights() {
+  const container = document.getElementById('insightList');
+  if (!container) return;
+  container.innerHTML = mockInsights.map((ins, i) => `
+    <div class="mini-card stagger-item" style="animation-delay:${i * 0.08}s; position: relative;">
+      <div class="flex gap-3">
+        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 text-white"
+              style="background:linear-gradient(135deg,${ins.color},${ins.color}dd);">${ins.index}</span>
+        <div class="flex-1">
+          <div class="font-medium t-primary">${ins.title}</div>
+          <div class="text-xs t-secondary mt-1 leading-relaxed">
+            影响：${ins.impact}<br/>
+            建议：${ins.suggestion}
+          </div>
+        </div>
+      </div>
+      <span class="copy-btn" style="position:absolute;top:10px;right:14px;font-size:18px;cursor:pointer;"
+            onclick="event.stopPropagation();copyInsight(${ins.index})" title="复制洞察">📋</span>
+    </div>`).join('');
+}
+
+// ============================================================
+//  RENDER ALERTS
+// ============================================================
+function renderAlerts() {
+  const container = document.getElementById('alertGrid');
+  if (!container) return;
+  container.innerHTML = mockAlerts.map(a => `
+    <div class="mini-card ${a.priority === 'P0' ? 'risk-mini' : 'risk-mini-amber'} cursor-pointer"
+         onclick="openAlertDetail(${a.id})" style="${a.status === 'resolved' ? 'opacity:0.5;text-decoration:line-through;' : ''}">
+      <div class="flex items-center gap-2">
+        <span class="${a.priority === 'P0' ? 'badge-p0' : 'badge-p1'} px-2 py-0.5 rounded-md text-[10px] font-semibold">${a.priority}</span>
+        <div class="font-medium t-primary">${a.title}</div>
+      </div>
+      <div class="text-xs t-secondary mt-2">${a.description}</div>
+      ${a.status === 'active' ? `<button class="btn btn-sm btn-outline mt-2" onclick="event.stopPropagation();markAlertResolved(${a.id})" style="font-size:11px;">✅ 标记已处理</button>` : '<span class="chip chip-ok" style="font-size:10px;">已解决</span>'}
+    </div>`).join('');
+}
+
+function renderAllAlerts() {
+  const container = document.getElementById('allAlertsList');
+  if (!container) return;
+  container.innerHTML = mockAlerts.map((a, i) => `
+    <div class="mini-card stagger-item" style="animation-delay:${i*0.08}s; animation-fill-mode: forwards; ${a.status==='resolved'?'opacity:0.5;text-decoration:line-through;':''}">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <span class="${a.priority === 'P0' ? 'badge-p0' : 'badge-p1'} px-2.5 py-1 rounded-lg text-xs font-semibold">${a.priority}</span>
+          <div>
+            <div class="font-medium t-primary">${a.title}</div>
+            <div class="text-xs t-tertiary">${a.description}</div>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          ${a.status === 'active' ? `<button class="btn btn-sm btn-outline" onclick="markAlertResolved(${a.id})" style="font-size:11px;">✅ 已处理</button>` : '<span class="chip chip-ok" style="font-size:10px;">已解决</span>'}
+          <span class="chip chip-clickable" onclick="openAlertDetail(${a.id})" style="font-size:11px;">详情</span>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function openAlertDetail(alertId) {
+  const alert = mockAlerts.find(a => a.id === alertId) || mockAlerts[0];
+  const body = `
+    <div class="space-y-4">
+      <div class="flex items-center gap-2">
+        <span class="${alert.priority === 'P0' ? 'badge-p0' : 'badge-p1'} px-2.5 py-1 rounded-lg text-xs font-semibold">${alert.priority}</span>
+        <span class="chip ${alert.is_systemic ? 'chip-danger' : 'chip-warn'}">${alert.is_systemic ? '系统性风险' : '独立风险'}</span>
+        <span class="chip">${alert.status === 'active' ? '活跃' : '已解决'}</span>
+      </div>
+      <h3 class="text-lg font-semibold t-primary">${alert.title}</h3>
+      <p class="text-sm t-secondary">${alert.description}</p>
+      <div class="p-3 rounded-xl" style="background:rgba(254,226,226,0.5);">
+        <strong class="t-danger">⚠️ 处理建议：</strong>
+        <p class="text-sm mt-1">建议立刻拉起跨研发-产品-客服三方应急例会。</p>
+      </div>
+      ${alert.status === 'active' ? `<button class="btn btn-primary btn-sm" onclick="markAlertResolved(${alert.id});closeModal();">✅ 标记为已处理</button>` : ''}
+    </div>`;
+  openModal(`🚨 告警详情`, body);
+}
+
+function markAlertResolved(id) {
+  const alert = mockAlerts.find(a => a.id === id);
+  if (alert) alert.status = 'resolved';
+  renderAlerts();
+  renderAllAlerts();
+  showToast(`告警 #${id} 已标记为已处理 ✅`, 'success');
+}
+
+// ============================================================
+//  RENDER HOT POSTS
+// ============================================================
+function renderHotPosts() {
+  const container = document.getElementById('hotPostList');
+  if (!container) return;
+  container.innerHTML = mockPosts.slice(0, 8).map((p, i) => `
+    <div class="mini-card stagger-item flex items-center justify-between gap-3 clickable"
+         style="animation-delay:${i * 0.06}s;" onclick="openPostDetail(${p.id})">
+      <div class="min-w-0">
+        <div class="text-sm truncate t-primary">${p.title}</div>
+        <div class="text-xs t-tertiary mt-0.5">${p.category} · ${p.sentiment}</div>
+      </div>
+      <div class="text-base font-semibold ${p.view_count > 300 ? 't-danger' : 't-secondary'} shrink-0">${p.view_count}</div>
+    </div>`).join('');
+}
+
+// ============================================================
+//  RENDER CLUSTER LIST (for Issues page)
+// ============================================================
+function renderClusterListDetailed() {
+  const container = document.getElementById('clusterListDetailed');
+  if (!container) return;
+  const clusters = [
+    { name:'① 元素定位 / 元素错位', count:42, pct:'13.4%', priority:'danger', keywords:['元素错位','多账号偏移','xpath','iframe','懒加载'], cause:'近期发版引入 DOM 兼容性回归', suggestion:'回归覆盖：多账号、Chrome新版、iframe、懒加载四类场景' },
+    { name:'② Excel 指令稳定性', count:28, pct:'8.9%', priority:'warn', keywords:['小绿标','数据透视表','公式失效','对象已关闭'], cause:'Excel 指令集与 Office 365 兼容性问题', suggestion:'锁定 Excel 兼容性专项' },
+    { name:'③ 第三方平台对接', count:28, pct:'8.9%', priority:'warn', keywords:['飞书','钉钉多维表','wps','紫鸟','千牛'], cause:'外部平台 API 变更', suggestion:'建立每日健康巡检' },
+    { name:'④ 触发与登录稳定性', count:17, pct:'5.4%', priority:'danger', keywords:['定时触发失败','登录不上','网页白屏','日期参数'], cause:'调度服务峰值时段失败', suggestion:'SRE 排查调度后端性能瓶颈' },
+  ];
+  container.innerHTML = clusters.map((c, i) => `
+    <div class="mini-card clickable stagger-item" style="animation-delay:${i*0.1}s;" onclick="toggleClusterDetail(${i})">
+      <div class="flex items-center justify-between">
+        <div class="font-medium t-primary">${c.name}</div>
+        <span class="chip chip-${c.priority}">${c.count} 条 · ${c.pct}</span>
+      </div>
+      <div class="text-xs t-secondary mt-2 cluster-detail">
+        关键词：${c.keywords.map(k => `<span class="chip chip-clickable" onclick="event.stopPropagation();searchKeyword('${k}')" style="font-size:11px;">${k}</span>`).join(' ')}<br/>
+        <span class="t-primary font-medium">可能原因：</span>${c.cause}<br/>
+        <span class="t-primary font-medium">建议：</span>${c.suggestion}
+      </div>
+    </div>`).join('');
+}
+
+// ============================================================
+//  CHARTS
+// ============================================================
+const cText  = '#0f172a';
+const cText2 = '#475569';
+const cText3 = '#94a3b8';
+const cAxis  = 'rgba(148,163,184,0.25)';
+function getChartTextColors() {
+  const isDark = document.body.classList.contains('dark');
+  return {
+    cText: isDark ? '#e2e8f0' : '#0f172a',
+    cText2: isDark ? '#94a3b8' : '#475569',
+    cText3: isDark ? '#64748b' : '#94a3b8',
+    cAxis: isDark ? 'rgba(100,116,139,0.3)' : 'rgba(148,163,184,0.25)',
+    tooltipBg: isDark ? 'rgba(30,41,59,0.95)' : 'rgba(255,255,255,0.92)',
+    tooltipBorder: isDark ? 'rgba(71,85,105,0.8)' : 'rgba(226,232,240,1)',
+  };
+}
+
+function makeTooltipStyle() {
+  const tc = getChartTextColors();
+  return {
+    backgroundColor: tc.tooltipBg,
+    borderColor: tc.tooltipBorder,
+    borderWidth: 1,
+    textStyle: { color: tc.cText, fontSize: 12 },
+    extraCssText: 'backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border-radius: 12px; box-shadow: 0 8px 24px rgba(15,23,42,0.12);'
+  };
+}
+
+let trendChartInstance, sentimentChartInstance, categoryChartInstance;
+let trendChartLargeInstance, categoryChartLargeInstance;
+
+function initTrendChart() {
+  const el = document.getElementById('trendChart');
+  if (!el) return;
+  const tc = getChartTextColors();
+  trendChartInstance = echarts.init(el);
+  trendChartInstance.setOption({
+    grid: { left: 36, right: 24, top: 36, bottom: 36 },
+    tooltip: { trigger: 'axis', ...makeTooltipStyle() },
+    legend: {
+      data: ['Bug / 系统异常', '功能咨询', 'RPA执行', 'Excel数据', '第三方系统'],
+      textStyle: { color: tc.cText2, fontSize: 11 },
+      top: 0, right: 0, itemGap: 14, icon: 'circle', itemWidth: 8, itemHeight: 8
+    },
+    xAxis: {
+      type: 'category',
+      data: ['6/20', '6/21', '6/22', '6/23', '6/24', '6/25*'],
+      axisLine: { lineStyle: { color: tc.cAxis } },
+      axisTick: { show: false },
+      axisLabel: { color: tc.cText3, fontSize: 11 }
+    },
+    yAxis: {
+      type: 'value', axisLine: { show: false },
+      splitLine: { lineStyle: { color: tc.cAxis, type: 'dashed' } },
+      axisLabel: { color: tc.cText3, fontSize: 11 }
+    },
+    series: [
+      {
+        name: 'Bug / 系统异常',
+        type: 'line', smooth: true, symbol: 'circle', symbolSize: 7,
+        data: [4, 8, 28, 28, 33, 8],
+        lineStyle: { width: 3, color: '#ef4444' },
+        itemStyle: { color: '#ef4444', borderColor: '#fff', borderWidth: 1.5 },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0,0,0,1, [
+            { offset: 0, color: 'rgba(239,68,68,0.28)' },
+            { offset: 1, color: 'rgba(239,68,68,0)' }
+          ])
+        },
+        markPoint: {
+          symbol: 'pin', symbolSize: 50,
+          itemStyle: { color: '#ef4444' },
+          label: { color: '#fff', fontSize: 11, fontWeight: 600 },
+          data: [{ name: '峰值', value: 33, xAxis: 4, yAxis: 33 }]
+        }
+      },
+      { name: '功能咨询', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [2, 12, 26, 29, 22, 12],
+        lineStyle: { width: 2.5, color: '#8b5cf6' }, itemStyle: { color: '#8b5cf6' } },
+      { name: 'RPA执行', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [1, 6, 5, 12, 11, 9],
+        lineStyle: { width: 2.5, color: '#3b82f6' }, itemStyle: { color: '#3b82f6' } },
+      { name: 'Excel数据', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [3, 2, 5, 6, 8, 4],
+        lineStyle: { width: 2.5, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' } },
+      { name: '第三方系统', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [0, 1, 7, 9, 7, 4],
+        lineStyle: { width: 2.5, color: '#10b981' }, itemStyle: { color: '#10b981' } }
+    ]
+  });
+}
+
+function initSentimentChart() {
+  const el = document.getElementById('sentimentChart');
+  if (!el) return;
+  sentimentChartInstance = echarts.init(el);
+  sentimentChartInstance.setOption({
+    tooltip: { trigger: 'item', ...makeTooltipStyle(), formatter: '{b}<br/>{c} 条 ({d}%)' },
+    series: [{
+      type: 'pie',
+      radius: ['62%', '88%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderColor: '#fff', borderWidth: 2, borderRadius: 6 },
+      label: { show: false }, labelLine: { show: false },
+      emphasis: { scale: true, scaleSize: 10, focus: 'self' },
+      data: [
+        { value: 160, name: '消极', itemStyle: { color: new echarts.graphic.LinearGradient(0,0,1,1,[{offset:0,color:'#ef4444'},{offset:1,color:'#f87171'}]) } },
+        { value: 150, name: '中性', itemStyle: { color: new echarts.graphic.LinearGradient(0,0,1,1,[{offset:0,color:'#8b5cf6'},{offset:1,color:'#a78bfa'}]) } },
+        { value: 3,   name: '积极', itemStyle: { color: new echarts.graphic.LinearGradient(0,0,1,1,[{offset:0,color:'#10b981'},{offset:1,color:'#34d399'}]) } }
+      ]
+    }],
+    graphic: [{
+      type: 'text', left: 'center', top: '42%',
+      style: { text: '消极主导', fill: getChartTextColors().cText, fontSize: 14, fontWeight: 600, textAlign: 'center' }
+    },{
+      type: 'text', left: 'center', top: '56%',
+      style: { text: '51.0%', fill: '#dc2626', fontSize: 18, fontWeight: 700, textAlign: 'center' }
+    }]
+  });
+}
+
+function initCategoryChart() {
+  const el = document.getElementById('categoryChart');
+  if (!el) return;
+  const tc = getChartTextColors();
+  categoryChartInstance = echarts.init(el);
+  const categories = ['Bug / 系统异常', '功能咨询', 'RPA执行问题', 'Excel数据问题', '第三方系统问题', '紧急求助'];
+  const counts = [109, 103, 44, 28, 28, 1];
+  const colors = ['#ef4444', '#8b5cf6', '#3b82f6', '#f59e0b', '#10b981', '#f97316'];
+  categoryChartInstance.setOption({
+    grid: { left: 130, right: 60, top: 16, bottom: 16 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...makeTooltipStyle(), formatter: p => {
+      const o = p[0]; return `${o.name}<br/>${o.value} 条 · ${(o.value/314*100).toFixed(1)}%`;
+    }},
+    xAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false },
+      splitLine: { lineStyle: { color: tc.cAxis, type: 'dashed' } },
+      axisLabel: { color: tc.cText3, fontSize: 11 } },
+    yAxis: { type: 'category', data: categories.slice().reverse(),
+      axisLine: { show: false }, axisTick: { show: false },
+      axisLabel: { color: tc.cText, fontSize: 12 } },
+    series: [{
+      type: 'bar',
+      data: counts.slice().reverse().map((v, i) => ({
+        value: v,
+        itemStyle: {
+          borderRadius: [0, 10, 10, 0],
+          color: new echarts.graphic.LinearGradient(0,0,1,0,[
+            { offset: 0, color: colors.slice().reverse()[i] + '99' },
+            { offset: 1, color: colors.slice().reverse()[i] }
+          ])
+        }
+      })),
+      barWidth: 16,
+      label: { show: true, position: 'right', color: tc.cText2, fontSize: 11,
+        formatter: p => `${p.value} · ${(p.value/314*100).toFixed(1)}%` },
+      emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.2)' } }
+    }]
+  });
+
+  // Click handler for category bars
+  categoryChartInstance.on('click', function(params) {
+    if (params.componentType === 'series') {
+      const name = params.name;
+      filterByCategory(name);
+    }
+  });
+}
+
+function initTrendChartLarge() {
+  const el = document.getElementById('trendChartLarge');
+  if (!el) return;
+  const tc = getChartTextColors();
+  if (trendChartLargeInstance) trendChartLargeInstance.dispose();
+  trendChartLargeInstance = echarts.init(el);
+  trendChartLargeInstance.setOption({
+    grid: { left: 40, right: 30, top: 50, bottom: 60 },
+    tooltip: { trigger: 'axis', ...makeTooltipStyle() },
+    legend: {
+      data: ['Bug / 系统异常', '功能咨询', 'RPA执行', 'Excel数据', '第三方系统'],
+      textStyle: { color: tc.cText2, fontSize: 11 },
+      top: 0, right: 0, itemGap: 14, icon: 'circle', itemWidth: 8, itemHeight: 8
+    },
+    dataZoom: [
+      { type: 'inside', start: 0, end: 100 },
+      { type: 'slider', start: 0, end: 100, height: 20, bottom: 10 }
+    ],
+    xAxis: {
+      type: 'category',
+      data: ['6/20', '6/21', '6/22', '6/23', '6/24', '6/25*'],
+      axisLine: { lineStyle: { color: tc.cAxis } },
+      axisTick: { show: false },
+      axisLabel: { color: tc.cText3, fontSize: 11 }
+    },
+    yAxis: {
+      type: 'value', axisLine: { show: false },
+      splitLine: { lineStyle: { color: tc.cAxis, type: 'dashed' } },
+      axisLabel: { color: tc.cText3, fontSize: 11 }
+    },
+    series: [
+      { name: 'Bug / 系统异常', type: 'line', smooth: true, symbol: 'circle', symbolSize: 7,
+        data: [4, 8, 28, 28, 33, 8], lineStyle: { width: 3, color: '#ef4444' }, itemStyle: { color: '#ef4444' },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1, [{ offset: 0, color: 'rgba(239,68,68,0.28)' }, { offset: 1, color: 'rgba(239,68,68,0)' }]) },
+        markPoint: { symbol: 'pin', symbolSize: 50, itemStyle: { color: '#ef4444' }, label: { color: '#fff', fontSize: 11, fontWeight: 600 }, data: [{ name: '峰值', value: 33, xAxis: 4, yAxis: 33 }] } },
+      { name: '功能咨询', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [2, 12, 26, 29, 22, 12], lineStyle: { width: 2.5, color: '#8b5cf6' }, itemStyle: { color: '#8b5cf6' } },
+      { name: 'RPA执行', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [1, 6, 5, 12, 11, 9], lineStyle: { width: 2.5, color: '#3b82f6' }, itemStyle: { color: '#3b82f6' } },
+      { name: 'Excel数据', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [3, 2, 5, 6, 8, 4], lineStyle: { width: 2.5, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' } },
+      { name: '第三方系统', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [0, 1, 7, 9, 7, 4], lineStyle: { width: 2.5, color: '#10b981' }, itemStyle: { color: '#10b981' } }
+    ]
+  });
+}
+
+function initCategoryChartLarge() {
+  const el = document.getElementById('categoryChartLarge');
+  if (!el) return;
+  const tc = getChartTextColors();
+  if (categoryChartLargeInstance) categoryChartLargeInstance.dispose();
+  categoryChartLargeInstance = echarts.init(el);
+  const categories = ['Bug / 系统异常', '功能咨询', 'RPA执行问题', 'Excel数据问题', '第三方系统问题', '紧急求助'];
+  const counts = [109, 103, 44, 28, 28, 1];
+  const colors = ['#ef4444', '#8b5cf6', '#3b82f6', '#f59e0b', '#10b981', '#f97316'];
+  categoryChartLargeInstance.setOption({
+    grid: { left: 140, right: 80, top: 16, bottom: 16 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...makeTooltipStyle(), formatter: p => {
+      const o = p[0]; return `${o.name}<br/>${o.value} 条 · ${(o.value/314*100).toFixed(1)}%`;
+    }},
+    xAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false },
+      splitLine: { lineStyle: { color: tc.cAxis, type: 'dashed' } },
+      axisLabel: { color: tc.cText3, fontSize: 11 } },
+    yAxis: { type: 'category', data: categories.slice().reverse(),
+      axisLine: { show: false }, axisTick: { show: false },
+      axisLabel: { color: tc.cText, fontSize: 12 } },
+    series: [{
+      type: 'bar',
+      data: counts.slice().reverse().map((v, i) => ({
+        value: v,
+        itemStyle: {
+          borderRadius: [0, 10, 10, 0],
+          color: new echarts.graphic.LinearGradient(0,0,1,0,[
+            { offset: 0, color: colors.slice().reverse()[i] + '99' },
+            { offset: 1, color: colors.slice().reverse()[i] }
+          ])
+        }
+      })),
+      barWidth: 20,
+      label: { show: true, position: 'right', color: tc.cText2, fontSize: 12,
+        formatter: p => `${p.value} · ${(p.value/314*100).toFixed(1)}%` }
+    }]
+  });
+}
+
+// ============================================================
+//  INITIALIZATION
+// ============================================================
+function initAll() {
+  initTrendChart();
+  initSentimentChart();
+  initCategoryChart();
+  renderInsights();
+  renderAlerts();
+  renderHotPosts();
+  document.getElementById('lastRefreshTime').textContent = new Date().toLocaleString('zh-CN');
+}
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  trendChartInstance?.resize();
+  sentimentChartInstance?.resize();
+  categoryChartInstance?.resize();
+  trendChartLargeInstance?.resize();
+  categoryChartLargeInstance?.resize();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+  if (e.ctrlKey && e.key === 'r') { e.preventDefault(); refreshData(); }
+  if (e.ctrlKey && e.key === 'd') { e.preventDefault(); toggleTheme(); }
+  if (e.ctrlKey && e.key === '1') { e.preventDefault(); switchPage('dashboard'); }
+  if (e.ctrlKey && e.key === '2') { e.preventDefault(); switchPage('trends'); }
+  if (e.ctrlKey && e.key === '3') { e.preventDefault(); switchPage('issues'); }
+  if (e.ctrlKey && e.key === '4') { e.preventDefault(); switchPage('risk'); }
+  if (e.ctrlKey && e.key === '5') { e.preventDefault(); switchPage('posts'); }
+});
+
+// Ripple effect on clickable cards
+document.addEventListener('click', function(e) {
+  const card = e.target.closest('.mini-card.clickable, .glass.specular');
+  if (!card) return;
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  const rect = card.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  ripple.style.width = ripple.style.height = size + 'px';
+  ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+  ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+  card.appendChild(ripple);
+  ripple.addEventListener('animationend', () => ripple.remove());
+});
+
+// Init on load
+initAll();
+console.log('🚀 影刀社区 · 企业级运营数据看板 已就绪');
+console.log('💡 提示：');
+console.log('  - 点击任意卡片/图表元素查看详情');
+console.log('  - Ctrl+R 刷新数据');
+console.log('  - Ctrl+D 切换主题');
+console.log('  - Ctrl+1~5 切换页面');
+console.log('  - 点击导航栏链接切换页面');
+console.log('  - 点击顶部日期周期可自定义查询范围');
+</script>
+</body>
+</html>

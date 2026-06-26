@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>影刀社区 · 企业级运营数据看板</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+    --c-danger:  #ef4444;
+    --c-danger-soft: #fee2e2;
+    --c-warn:    #f59e0b;
+    --c-warn-soft: #fef3c7;
+    --c-ok:      #10b981;
+    --c-ok-soft: #d1fae5;
+    --c-info:    #3b82f6;
+    --c-info-soft: #dbeafe;
+    --c-purple:  #8b5cf6;
+    --t-primary:   #0f172a;
+    --t-secondary: #475569;
+    --t-tertiary:  #94a3b8;
+  }
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 50%, #dbeafe 100%);
+    background-attachment: fixed;
+    color: var(--t-primary);
+    overflow-x: hidden;
+  }
+  .ambient-orb {
+    position: fixed; border-radius: 9999px;
+    filter: blur(120px); opacity: 0.45;
+    pointer-events: none; z-index: 0;
+  }
+  .orb-1 { width: 480px; height: 480px; background: #93c5fd; top: -120px; left: -120px; }
+  .orb-2 { width: 420px; height: 420px; background: #c7d2fe; top: 30%; right: -150px; }
+  .orb-3 { width: 420px; height: 420px; background: #a5f3fc; bottom: -150px; left: 30%; }
+  .orb-4 { width: 320px; height: 320px; background: #ddd6fe; top: 60%; left: -100px; opacity: 0.35; }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 24px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 8px 32px rgba(15, 23, 42, 0.08),
+      0 2px 8px rgba(15, 23, 42, 0.04);
+    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.5), transparent 50%);
+    transition: all 500ms var(--ease-spring);
+    position: relative; overflow: hidden;
+  }
+  .glass:hover {
+    background-color: rgba(255, 255, 255, 0.78);
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 20px 50px rgba(15, 23, 42, 0.12),
+      0 4px 12px rgba(15, 23, 42, 0.06);
+  }
+  .glass::before {
+    content: ""; position: absolute; inset: 0;
+    border-radius: inherit; padding: 1px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0) 50%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .top-nav {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  }
+
+  .score-ring { position: relative; width: 180px; height: 180px; }
+  .score-ring svg { transform: rotate(-90deg); }
+  .score-ring .track { stroke: rgba(148, 163, 184, 0.25); }
+  .score-ring .progress {
+    stroke: url(#scoreGrad); stroke-linecap: round;
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.35));
+    transition: stroke-dashoffset 1.2s var(--ease-spring);
+  }
+
+  .badge-p0 { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; box-shadow: 0 2px 8px rgba(239,68,68,0.3); }
+  .badge-p1 { background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,0.3); }
+  .badge-p2 { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px; font-size: 12px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: var(--t-secondary);
+  }
+  .chip-danger { background: var(--c-danger-soft); border-color: rgba(239,68,68,0.3); color: #991b1b; }
+  .chip-warn   { background: var(--c-warn-soft);   border-color: rgba(245,158,11,0.3); color: #92400e; }
+  .chip-ok     { background: var(--c-ok-soft);     border-color: rgba(16,185,129,0.3); color: #065f46; }
+  .chip-info   { background: var(--c-info-soft);   border-color: rgba(59,130,246,0.3); color: #1e40af; }
+
+  .pulse-dot {
+    width: 8px; height: 8px; border-radius: 9999px; background: var(--c-danger);
+    box-shadow: 0 0 0 0 rgba(239,68,68, 0.6);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(239,68,68, 0.6); }
+    70% { box-shadow: 0 0 0 12px rgba(239,68,68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(239,68,68, 0); }
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.4); border-radius: 999px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  .mini-card {
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    border-radius: 16px; padding: 14px;
+    transition: all 400ms var(--ease-spring);
+  }
+  .mini-card:hover {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(203, 213, 225, 1);
+    transform: translateY(-1px);
+  }
+
+  .bar-track { background: rgba(148, 163, 184, 0.18); border-radius: 999px; height: 8px; overflow: hidden; }
+  .bar-fill  { height: 100%; border-radius: 999px; transition: width 1s var(--ease-spring); }
+
+  .specular { position: relative; }
+  .specular::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%);
+    transform: translateX(-100%);
+    transition: transform 900ms var(--ease-spring);
+    pointer-events: none; border-radius: inherit;
+  }
+  .specular:hover::after { transform: translateX(100%); }
+
+  .section-title { font-weight: 600; color: var(--t-primary); letter-spacing: 0.01em; }
+  .section-sub   { color: var(--t-tertiary); font-size: 12px; font-weight: 600; letter-spacing: 0.08em; }
+
+  .t-primary   { color: var(--t-primary); }
+  .t-secondary { color: var(--t-secondary); }
+  .t-tertiary  { color: var(--t-tertiary); }
+  .t-danger    { color: #dc2626; }
+  .t-warn      { color: #d97706; }
+  .t-ok        { color: #059669; }
+  .t-info      { color: #2563eb; }
+  .t-purple    { color: #7c3aed; }
+
+  .risk-card {
+    background: linear-gradient(135deg, rgba(254, 226, 226, 0.7), rgba(255, 255, 255, 0.65));
+  }
+  .risk-mini {
+    background: rgba(254, 242, 242, 0.85);
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+  .risk-mini-amber {
+    background: rgba(255, 251, 235, 0.85);
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="ambient-orb orb-1"></div>
+  <div class="ambient-orb orb-2"></div>
+  <div class="ambient-orb orb-3"></div>
+  <div class="ambient-orb orb-4"></div>
+
+  <nav class="top-nav sticky top-0 z-50 px-6 md:px-10 py-4">
+    <div class="max-w-[1440px] mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <div class="w-10 h-10 rounded-2xl flex items-center justify-center"
+             style="background: linear-gradient(135deg, #3b82f6, #6366f1); box-shadow: 0 8px 24px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.5);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/>
+          </svg>
+        </div>
+        <div>
+          <div class="text-lg md:text-xl font-semibold tracking-wide t-primary">影刀社区 · 运营数据看板</div>
+          <div class="text-xs t-tertiary">Community Operations Intelligence · Enterprise Edition</div>
+        </div>
+      </div>
+      <div class="hidden md:flex items-center gap-3">
+        <span class="chip"><span class="pulse-dot"></span> 实时</span>
+        <span class="chip chip-info">数据周期 2026/06/20 — 2026/06/25</span>
+        <span class="chip">样本 314 条</span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="relative z-10 max-w-[1440px] mx-auto px-6 md:px-10 py-8 md:py-12">
+
+    <header class="mb-8 md:mb-10">
+      <h1 class="text-3xl md:text-5xl font-semibold tracking-tight t-primary">每日洞察 · <span class="t-secondary">2026年6月25日</span></h1>
+      <p class="t-secondary mt-3 text-sm md:text-base max-w-2xl leading-relaxed">
+        监控 / 趋势 / 异常 / 归因 / 风险 — 面向产品与运营决策的社区健康透视。
+      </p>
+    </header>
+
+    <section class="grid grid-cols-12 gap-5 md:gap-6 mb-6">
+      <div class="glass specular col-span-12 lg:col-span-5 p-6 md:p-8">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="section-sub">SYSTEM HEALTH</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">数据总体健康度</h2>
+          </div>
+          <span class="chip chip-danger">高风险</span>
+        </div>
+
+        <div class="flex items-center gap-6 md:gap-8">
+          <div class="score-ring shrink-0">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              <defs>
+                <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ef4444"/>
+                  <stop offset="50%" stop-color="#f97316"/>
+                  <stop offset="100%" stop-color="#f59e0b"/>
+                </linearGradient>
+              </defs>
+              <circle class="track" cx="90" cy="90" r="78" fill="none" stroke-width="14"/>
+              <circle class="progress" cx="90" cy="90" r="78" fill="none" stroke-width="14"
+                      stroke-dasharray="490" stroke-dashoffset="270"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <div class="text-5xl font-semibold leading-none t-primary">45</div>
+              <div class="text-xs t-tertiary mt-2">/ 100</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 flex-1">
+            <div class="mini-card">
+              <div class="text-xs t-tertiary">总帖子量</div>
+              <div class="text-2xl font-semibold mt-1 t-primary">314</div>
+            </div>
+            <div class="mini-card">
+              <div class="text-xs t-tertiary">日均帖子量</div>
+              <div class="text-2xl font-semibold mt-1 t-primary">52.3</div>
+            </div>
+            <div class="mini-card">
+              <div class="text-xs t-tertiary">Bug 占比</div>
+              <div class="text-2xl font-semibold mt-1 t-danger">34.7%</div>
+            </div>
+            <div class="mini-card">
+              <div class="text-xs t-tertiary">消极情绪占比</div>
+              <div class="text-2xl font-semibold mt-1 t-danger">51.0%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 text-sm t-secondary leading-relaxed">
+          评分逻辑：Bug 占比与消极情绪占比双高，且出现 P0 紧急求助。
+          系统处于<span class="t-danger font-medium">承压区间</span>，建议进入预警状态。
+        </div>
+      </div>
+
+      <div class="glass specular col-span-6 lg:col-span-3 p-5 md:p-6">
+        <div class="flex items-center justify-between">
+          <span class="section-sub">今日 vs 昨日</span>
+          <span class="chip chip-danger">突增</span>
+        </div>
+        <div class="mt-3 text-3xl md:text-4xl font-semibold t-danger">+17.9%</div>
+        <div class="text-sm t-secondary mt-1">Bug 类问题（6/23→6/24）</div>
+        <div class="bar-track mt-4">
+          <div class="bar-fill" style="width: 72%; background: linear-gradient(90deg,#ef4444,#f59e0b);"></div>
+        </div>
+      </div>
+
+      <div class="glass specular col-span-6 lg:col-span-4 p-5 md:p-6">
+        <div class="flex items-center justify-between">
+          <span class="section-sub">P0 风险</span>
+          <span class="chip chip-warn">需关注</span>
+        </div>
+        <div class="mt-3 flex items-baseline gap-3">
+          <div class="text-4xl font-semibold t-primary">1</div>
+          <div class="text-sm t-secondary">条紧急求助 · 5 条系统性 Bug 集群</div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mt-4">
+          <div class="mini-card text-center">
+            <div class="text-xs t-tertiary">P0</div>
+            <div class="text-xl font-semibold t-danger mt-1">6</div>
+          </div>
+          <div class="mini-card text-center">
+            <div class="text-xs t-tertiary">P1</div>
+            <div class="text-xl font-semibold t-warn mt-1">181</div>
+          </div>
+          <div class="mini-card text-center">
+            <div class="text-xs t-tertiary">P2</div>
+            <div class="text-xl font-semibold t-info mt-1">127</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-12 gap-5 md:gap-6 mb-6">
+      <div class="glass col-span-12 lg:col-span-7 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">TREND &amp; ANOMALY</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">趋势与异常检测</h2>
+          </div>
+          <div class="flex flex-wrap gap-2 justify-end">
+            <span class="chip chip-danger">Bug 突增 +17.9%</span>
+            <span class="chip chip-warn">Excel 突增 +33.3%</span>
+          </div>
+        </div>
+        <div id="trendChart" style="width: 100%; height: 320px;"></div>
+        <div class="mt-4 text-sm t-secondary leading-relaxed">
+          6/22 起整体帖量进入高位（&gt;70/日），6/24 Bug 类问题创周期峰值
+          <span class="t-danger font-medium">33 条</span>，存在功能集中爆发迹象；6/25
+          数据为采集中（仅含上半日），不参与异常判定。
+        </div>
+      </div>
+
+      <div class="glass col-span-12 md:col-span-6 lg:col-span-5 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <div class="section-sub">SENTIMENT</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">情绪与用户体验</h2>
+          </div>
+          <span class="chip chip-danger">消极主导</span>
+        </div>
+
+        <div class="flex items-center gap-6">
+          <div id="sentimentChart" style="width: 180px; height: 180px;"></div>
+          <div class="flex-1 space-y-3">
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="t-primary"><span class="inline-block w-2 h-2 rounded-full mr-2 align-middle" style="background:#ef4444"></span>消极</span>
+                <span class="t-secondary">160 · 51.0%</span>
+              </div>
+              <div class="bar-track mt-1"><div class="bar-fill" style="width:51%; background:linear-gradient(90deg,#ef4444,#f87171)"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="t-primary"><span class="inline-block w-2 h-2 rounded-full mr-2 align-middle" style="background:#8b5cf6"></span>中性</span>
+                <span class="t-secondary">150 · 47.8%</span>
+              </div>
+              <div class="bar-track mt-1"><div class="bar-fill" style="width:47.8%; background:linear-gradient(90deg,#8b5cf6,#a78bfa)"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm">
+                <span class="t-primary"><span class="inline-block w-2 h-2 rounded-full mr-2 align-middle" style="background:#10b981"></span>积极</span>
+                <span class="t-secondary">3 · 1.0%</span>
+              </div>
+              <div class="bar-track mt-1"><div class="bar-fill" style="width:6%; background:linear-gradient(90deg,#10b981,#34d399)"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 text-sm t-secondary leading-relaxed">
+          消极情绪连续 4 日 ≥ 40 条，主要驱动来自
+          <span class="t-danger">Bug / 系统异常</span>（占消极 53%），其次为
+          <span class="t-warn">RPA 执行问题</span>。
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-12 gap-5 md:gap-6 mb-6">
+      <div class="glass col-span-12 lg:col-span-7 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">ISSUE BREAKDOWN</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">问题结构分析</h2>
+          </div>
+          <span class="chip">Top 5 类别</span>
+        </div>
+        <div id="categoryChart" style="width:100%; height: 320px;"></div>
+      </div>
+
+      <div class="glass col-span-12 lg:col-span-5 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">PRIORITY</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">问题优先级分布</h2>
+          </div>
+          <span class="chip chip-warn">P1 占比偏高</span>
+        </div>
+
+        <div class="space-y-4">
+          <div class="mini-card">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="badge-p0 px-2.5 py-1 rounded-lg text-xs font-semibold">P0</span>
+                <div>
+                  <div class="font-medium t-primary">系统不可用 / 大面积 / 紧急求助</div>
+                  <div class="text-xs t-tertiary mt-0.5">登录失败、批量数据抓取BUG、多电脑元素错位</div>
+                </div>
+              </div>
+              <div class="text-2xl font-semibold t-danger">6</div>
+            </div>
+            <div class="bar-track mt-3"><div class="bar-fill" style="width:6%; background:linear-gradient(90deg,#ef4444,#f87171)"></div></div>
+          </div>
+
+          <div class="mini-card">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="badge-p1 px-2.5 py-1 rounded-lg text-xs font-semibold">P1</span>
+                <div>
+                  <div class="font-medium t-primary">功能异常但可绕过</div>
+                  <div class="text-xs t-tertiary mt-0.5">Bug / 系统异常 + RPA执行 + Excel + 第三方</div>
+                </div>
+              </div>
+              <div class="text-2xl font-semibold t-warn">181</div>
+            </div>
+            <div class="bar-track mt-3"><div class="bar-fill" style="width:57.6%; background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div></div>
+          </div>
+
+          <div class="mini-card">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="badge-p2 px-2.5 py-1 rounded-lg text-xs font-semibold">P2</span>
+                <div>
+                  <div class="font-medium t-primary">咨询 / 使用问题</div>
+                  <div class="text-xs t-tertiary mt-0.5">功能咨询、新手入门、闲聊讨论</div>
+                </div>
+              </div>
+              <div class="text-2xl font-semibold t-info">127</div>
+            </div>
+            <div class="bar-track mt-3"><div class="bar-fill" style="width:40.4%; background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-12 gap-5 md:gap-6 mb-6">
+      <div class="glass col-span-12 lg:col-span-6 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">ROOT CAUSE</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">根因分析（语义聚类）</h2>
+          </div>
+          <span class="chip chip-info">4 个高频簇</span>
+        </div>
+
+        <div class="space-y-3">
+          <div class="mini-card">
+            <div class="flex items-center justify-between">
+              <div class="font-medium t-primary">① 元素定位 / 元素错位</div>
+              <span class="chip chip-danger">42 条 · 13.4%</span>
+            </div>
+            <div class="text-xs t-secondary mt-2 leading-relaxed">
+              关键词：元素错位 / 多账号偏移 / xpath / iframe / 懒加载。<br/>
+              <span class="t-primary font-medium">可能原因：</span>近期发版引入 DOM 兼容性回归，跨账号/浏览器渲染差异未覆盖；与谷歌内核新版本相关。
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <div class="flex items-center justify-between">
+              <div class="font-medium t-primary">② Excel 指令稳定性</div>
+              <span class="chip chip-warn">28 条 · 8.9%</span>
+            </div>
+            <div class="text-xs t-secondary mt-2 leading-relaxed">
+              关键词：小绿标 / 数据透视表 / 公式失效 / 对象已关闭。<br/>
+              <span class="t-primary font-medium">可能原因：</span>Excel 指令集与 Office 365 新版兼容性问题，
+              对象生命周期管理在并发场景下异常。
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <div class="flex items-center justify-between">
+              <div class="font-medium t-primary">③ 第三方平台对接</div>
+              <span class="chip chip-warn">28 条 · 8.9%</span>
+            </div>
+            <div class="text-xs t-secondary mt-2 leading-relaxed">
+              关键词：飞书 / 钉钉多维表 / wps / 紫鸟 / 挖象 / 千牛。<br/>
+              <span class="t-primary font-medium">可能原因：</span>外部平台 API 变更（403/数据异常）+ 浏览器登录会话被频繁踢出，
+              非平台自身缺陷，但需补充故障告警。
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <div class="flex items-center justify-between">
+              <div class="font-medium t-primary">④ 触发与登录稳定性</div>
+              <span class="chip chip-danger">17 条 · 5.4%</span>
+            </div>
+            <div class="text-xs t-secondary mt-2 leading-relaxed">
+              关键词：定时触发失败 / 登录不上 / 网页白屏 / 日期参数。<br/>
+              <span class="t-primary font-medium">可能原因：</span>调度服务在峰值时段出现失败，疑似与近一周后端版本相关，需 SRE 排查。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass col-span-12 lg:col-span-6 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">BUSINESS INSIGHT</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">关键业务洞察</h2>
+          </div>
+          <span class="chip chip-info">5 条可执行结论</span>
+        </div>
+
+        <div class="space-y-3">
+          <div class="mini-card">
+            <div class="flex gap-3">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 text-white"
+                    style="background:linear-gradient(135deg,#ef4444,#dc2626);">1</span>
+              <div>
+                <div class="font-medium t-primary">Bug 类问题进入爆发期，需立刻冻结非必要发版</div>
+                <div class="text-xs t-secondary mt-1 leading-relaxed">
+                  影响：消极情绪 51%，已显著超过预警线（35%）。<br/>
+                  建议：组织 RPA 引擎 + 浏览器适配专项 hotfix，48 小时内合入。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <div class="flex gap-3">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 text-white"
+                    style="background:linear-gradient(135deg,#f59e0b,#d97706);">2</span>
+              <div>
+                <div class="font-medium t-primary">"元素错位 / 多账号偏移" 已具备系统性特征</div>
+                <div class="text-xs t-secondary mt-1 leading-relaxed">
+                  影响：覆盖 42 个独立反馈，跨多个用户与电脑。<br/>
+                  建议：作为 P0 缺陷立项，回归覆盖：多账号、Chrome 新版、iframe、懒加载四类场景。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <div class="flex gap-3">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 text-white"
+                    style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);">3</span>
+              <div>
+                <div class="font-medium t-primary">第三方平台问题非自身缺陷，但用户体感等同 Bug</div>
+                <div class="text-xs t-secondary mt-1 leading-relaxed">
+                  建议：在指令运行结果中明确区分"外部平台异常"与"影刀异常"，
+                  并对飞书/钉钉/wps/千牛建立每日健康巡检。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <div class="flex gap-3">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 text-white"
+                    style="background:linear-gradient(135deg,#3b82f6,#2563eb);">4</span>
+              <div>
+                <div class="font-medium t-primary">功能咨询占 32.8%，社区自助内容力不足</div>
+                <div class="text-xs t-secondary mt-1 leading-relaxed">
+                  Top 浏览帖多为情感/求职话题，技术咨询长尾分散。<br/>
+                  建议：将高频 P2（如 xpath 写法、Excel 透视表、定时触发）固化为"问答 + 示例工程"知识库入口。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <div class="flex gap-3">
+              <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 text-white"
+                    style="background:linear-gradient(135deg,#10b981,#059669);">5</span>
+              <div>
+                <div class="font-medium t-primary">"社区官方维护缺位" 的负面舆论已显现</div>
+                <div class="text-xs t-secondary mt-1 leading-relaxed">
+                  影响：相关帖浏览量进入 Top 10。<br/>
+                  建议：建立官方响应 SLA（24h 内首次回复），并在 P0/P1 帖子下置顶官方进展。
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-12 gap-5 md:gap-6 mb-6">
+      <div class="glass risk-card col-span-12 lg:col-span-7 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="pulse-dot"></span>
+            <div>
+              <div class="section-sub" style="color:#b91c1c">RISK ALERT</div>
+              <h2 class="section-title text-xl md:text-2xl mt-1">风险提示</h2>
+            </div>
+          </div>
+          <span class="chip chip-danger">是 · 需紧急处理</span>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-3">
+          <div class="mini-card risk-mini">
+            <div class="flex items-center gap-2">
+              <span class="badge-p0 px-2 py-0.5 rounded-md text-[10px] font-semibold">P0</span>
+              <div class="font-medium t-primary">多电脑反复出现元素错位</div>
+            </div>
+            <div class="text-xs t-secondary mt-2">浏览量 337（周期最高），跨账号复现，已具备系统性风险。</div>
+          </div>
+          <div class="mini-card risk-mini">
+            <div class="flex items-center gap-2">
+              <span class="badge-p0 px-2 py-0.5 rounded-md text-[10px] font-semibold">P0</span>
+              <div class="font-medium t-primary">批量数据抓取 BUG：抓单列变成抓一行</div>
+            </div>
+            <div class="text-xs t-secondary mt-2">影响数据正确性，对生产链路冲击大，需立刻 hotfix。</div>
+          </div>
+          <div class="mini-card risk-mini-amber">
+            <div class="flex items-center gap-2">
+              <span class="badge-p1 px-2 py-0.5 rounded-md text-[10px] font-semibold">P1</span>
+              <div class="font-medium t-primary">定时触发失败 / 登录不上</div>
+            </div>
+            <div class="text-xs t-secondary mt-2">多个独立反馈，疑似调度后端在峰值时段抖动。</div>
+          </div>
+          <div class="mini-card risk-mini-amber">
+            <div class="flex items-center gap-2">
+              <span class="badge-p1 px-2 py-0.5 rounded-md text-[10px] font-semibold">P1</span>
+              <div class="font-medium t-primary">Excel 指令兼容性（小绿标 / 透视表 / 对象关闭）</div>
+            </div>
+            <div class="text-xs t-secondary mt-2">28 条聚集，建议本迭代锁定 Excel 兼容性专项。</div>
+          </div>
+        </div>
+
+        <div class="mt-5 text-sm t-secondary leading-relaxed">
+          <span class="font-medium t-danger">系统性风险判定：是。</span>
+          建议立刻拉起跨研发-产品-客服三方应急例会，并在 48 小时内向客户发出官方告知。
+        </div>
+      </div>
+
+      <div class="glass col-span-12 lg:col-span-5 p-6 md:p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="section-sub">HOT POSTS</div>
+            <h2 class="section-title text-xl md:text-2xl mt-1">高浏览帖 TOP 8</h2>
+          </div>
+          <span class="chip">舆论焦点</span>
+        </div>
+        <div class="space-y-2">
+          <div class="mini-card flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm truncate t-primary">多台电脑反复出现元素错位</div>
+              <div class="text-xs t-tertiary mt-0.5">Bug / 系统异常 · 消极</div>
+            </div>
+            <div class="text-base font-semibold t-danger shrink-0">337</div>
+          </div>
+          <div class="mini-card flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm truncate t-primary">是否喜欢 RPA 数据自动化工作</div>
+              <div class="text-xs t-tertiary mt-0.5">功能咨询 · 中性</div>
+            </div>
+            <div class="text-base font-semibold t-secondary shrink-0">295</div>
+          </div>
+          <div class="mini-card flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm truncate t-primary">这周离职又要找工作</div>
+              <div class="text-xs t-tertiary mt-0.5">功能咨询 · 消极</div>
+            </div>
+            <div class="text-base font-semibold t-secondary shrink-0">279</div>
+          </div>
+          <div class="mini-card flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm truncate t-primary">我真是 chovy 了影刀</div>
+              <div class="text-xs t-tertiary mt-0.5">功能咨询 · 消极</div>
+            </div>
+            <div class="text-base font-semibold t-secondary shrink-0">278</div>
+          </div>
+          <div class="mini-card flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm truncate t-primary">你们面试需要机考吗</div>
+              <div class="text-xs t-tertiary mt-0.5">功能咨询 · 中性</div>
+            </div>
+            <div class="text-base font-semibold t-secondary shrink-0">276</div>
+          </div>
+          <div class="mini-card flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm truncate t-primary">影刀社区官方似乎没有维护</div>
+              <div class="text-xs t-tertiary mt-0.5">功能咨询 · 消极</div>
+            </div>
+            <div class="text-base font-semibold t-danger shrink-0">275</div>
+          </div>
+          <div class="mini-card flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm truncate t-primary">很多公司跟影刀合作</div>
+              <div class="text-xs t-tertiary mt-0.5">功能咨询 · 中性</div>
+            </div>
+            <div class="text-base font-semibold t-secondary shrink-0">272</div>
+          </div>
+          <div class="mini-card flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-sm truncate t-primary">学习影刀为什么要学 python</div>
+              <div class="text-xs t-tertiary mt-0.5">功能咨询 · 中性</div>
+            </div>
+            <div class="text-base font-semibold t-secondary shrink-0">232</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="text-center text-xs t-tertiary mt-10 pb-6">
+      <div>© 2026 Community Operations Intelligence · Generated from 314 records · Liquid Glass × Bento Grid</div>
+    </footer>
+  </main>
+
+<script>
+  const cText  = '#0f172a';
+  const cText2 = '#475569';
+  const cText3 = '#94a3b8';
+  const cAxis  = 'rgba(148,163,184,0.25)';
+  const tooltipStyle = {
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderColor: 'rgba(226,232,240,1)',
+    borderWidth: 1,
+    textStyle: { color: cText, fontSize: 12 },
+    extraCssText: 'backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%); border-radius: 12px; box-shadow: 0 8px 24px rgba(15,23,42,0.12);'
+  };
+
+  const trendChart = echarts.init(document.getElementById('trendChart'));
+  trendChart.setOption({
+    grid: { left: 36, right: 24, top: 36, bottom: 36 },
+    tooltip: { trigger: 'axis', ...tooltipStyle },
+    legend: {
+      data: ['Bug / 系统异常', '功能咨询', 'RPA执行', 'Excel数据', '第三方系统'],
+      textStyle: { color: cText2, fontSize: 11 },
+      top: 0, right: 0, itemGap: 14, icon: 'circle', itemWidth: 8, itemHeight: 8
+    },
+    xAxis: {
+      type: 'category',
+      data: ['6/20', '6/21', '6/22', '6/23', '6/24', '6/25*'],
+      axisLine: { lineStyle: { color: cAxis } },
+      axisTick: { show: false },
+      axisLabel: { color: cText3, fontSize: 11 }
+    },
+    yAxis: {
+      type: 'value', axisLine: { show: false },
+      splitLine: { lineStyle: { color: cAxis, type: 'dashed' } },
+      axisLabel: { color: cText3, fontSize: 11 }
+    },
+    series: [
+      {
+        name: 'Bug / 系统异常',
+        type: 'line', smooth: true, symbol: 'circle', symbolSize: 7,
+        data: [4, 8, 28, 28, 33, 8],
+        lineStyle: { width: 3, color: '#ef4444' },
+        itemStyle: { color: '#ef4444', borderColor: '#fff', borderWidth: 1.5 },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0,0,0,1, [
+            { offset: 0, color: 'rgba(239,68,68,0.28)' },
+            { offset: 1, color: 'rgba(239,68,68,0)' }
+          ])
+        },
+        markPoint: {
+          symbol: 'pin', symbolSize: 50,
+          itemStyle: { color: '#ef4444' },
+          label: { color: '#fff', fontSize: 11, fontWeight: 600 },
+          data: [{ name: '峰值', value: 33, xAxis: 4, yAxis: 33 }]
+        }
+      },
+      { name: '功能咨询', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [2, 12, 26, 29, 22, 12],
+        lineStyle: { width: 2.5, color: '#8b5cf6' }, itemStyle: { color: '#8b5cf6' } },
+      { name: 'RPA执行', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [1, 6, 5, 12, 11, 9],
+        lineStyle: { width: 2.5, color: '#3b82f6' }, itemStyle: { color: '#3b82f6' } },
+      { name: 'Excel数据', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [3, 2, 5, 6, 8, 4],
+        lineStyle: { width: 2.5, color: '#f59e0b' }, itemStyle: { color: '#f59e0b' } },
+      { name: '第三方系统', type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        data: [0, 1, 7, 9, 7, 4],
+        lineStyle: { width: 2.5, color: '#10b981' }, itemStyle: { color: '#10b981' } }
+    ]
+  });
+
+  const sentimentChart = echarts.init(document.getElementById('sentimentChart'));
+  sentimentChart.setOption({
+    tooltip: { trigger: 'item', ...tooltipStyle, formatter: '{b}<br/>{c} 条 ({d}%)' },
+    series: [{
+      type: 'pie',
+      radius: ['62%', '88%'],
+      avoidLabelOverlap: false,
+      itemStyle: { borderColor: '#fff', borderWidth: 2, borderRadius: 6 },
+      label: { show: false }, labelLine: { show: false },
+      data: [
+        { value: 160, name: '消极', itemStyle: { color: new echarts.graphic.LinearGradient(0,0,1,1,[{offset:0,color:'#ef4444'},{offset:1,color:'#f87171'}]) } },
+        { value: 150, name: '中性', itemStyle: { color: new echarts.graphic.LinearGradient(0,0,1,1,[{offset:0,color:'#8b5cf6'},{offset:1,color:'#a78bfa'}]) } },
+        { value: 3,   name: '积极', itemStyle: { color: new echarts.graphic.LinearGradient(0,0,1,1,[{offset:0,color:'#10b981'},{offset:1,color:'#34d399'}]) } }
+      ]
+    }],
+    graphic: [{
+      type: 'text', left: 'center', top: '42%',
+      style: { text: '消极主导', fill: cText, fontSize: 14, fontWeight: 600, textAlign: 'center' }
+    },{
+      type: 'text', left: 'center', top: '56%',
+      style: { text: '51.0%', fill: '#dc2626', fontSize: 18, fontWeight: 700, textAlign: 'center' }
+    }]
+  });
+
+  const categoryChart = echarts.init(document.getElementById('categoryChart'));
+  const categories = ['Bug / 系统异常', '功能咨询', 'RPA执行问题', 'Excel数据问题', '第三方系统问题', '紧急求助'];
+  const counts = [109, 103, 44, 28, 28, 1];
+  const colors = ['#ef4444', '#8b5cf6', '#3b82f6', '#f59e0b', '#10b981', '#f97316'];
+  categoryChart.setOption({
+    grid: { left: 130, right: 60, top: 16, bottom: 16 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, ...tooltipStyle, formatter: p => {
+      const o = p[0]; const pct = (o.value/314*100).toFixed(1);
+      return `${o.name}<br/>${o.value} 条 · ${pct}%`;
+    }},
+    xAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false },
+      splitLine: { lineStyle: { color: cAxis, type: 'dashed' } },
+      axisLabel: { color: cText3, fontSize: 11 } },
+    yAxis: { type: 'category', data: categories.slice().reverse(),
+      axisLine: { show: false }, axisTick: { show: false },
+      axisLabel: { color: cText, fontSize: 12 } },
+    series: [{
+      type: 'bar',
+      data: counts.slice().reverse().map((v, i) => ({
+        value: v,
+        itemStyle: {
+          borderRadius: [0, 10, 10, 0],
+          color: new echarts.graphic.LinearGradient(0,0,1,0,[
+            { offset: 0, color: colors.slice().reverse()[i] + '99' },
+            { offset: 1, color: colors.slice().reverse()[i] }
+          ])
+        }
+      })),
+      barWidth: 16,
+      label: { show: true, position: 'right', color: cText2, fontSize: 11,
+        formatter: p => `${p.value} · ${(p.value/314*100).toFixed(1)}%` }
+    }]
+  });
+
+  window.addEventListener('resize', () => {
+    trendChart.resize(); sentimentChart.resize(); categoryChart.resize();
+  });
+</script>
+</body>
+</html>
