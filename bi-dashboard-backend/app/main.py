@@ -4,6 +4,7 @@ FastAPI 应用入口
 """
 import sys
 import logging
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -57,6 +58,7 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info("影刀社区 · BI 看板后端服务启动中...")
     logger.info(f"数据库: {get_db_type().upper()} ({settings.DATABASE_URL})")
+    is_vercel = bool(os.getenv("VERCEL"))
 
     # Supabase REST API 连接检查 (导入脚本用)
     if settings.SUPABASE_URL:
@@ -69,12 +71,18 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.debug(f"Supabase REST API 未连接: {e}")
 
-    # 创建所有表
-    Base.metadata.create_all(bind=engine)
-    logger.info("本地数据库表初始化完成")
+    # Vercel Serverless 冷启动期间不做 DDL，避免数据库短暂不可达导致函数整体崩溃。
+    if is_vercel:
+        logger.info("Vercel 环境：跳过启动期数据库建表，请提前初始化表结构")
+    else:
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("数据库表初始化完成")
+        except Exception as e:
+            logger.error(f"数据库表初始化失败，服务继续启动: {e}")
 
     # 启动定时任务
-    if settings.ENABLE_SCHEDULER:
+    if settings.ENABLE_SCHEDULER and not is_vercel:
         scheduler.add_job(
             scheduled_generate_daily_summary,
             trigger="cron",
@@ -89,6 +97,8 @@ async def lifespan(app: FastAPI):
             f"每日 {settings.DAILY_SUMMARY_HOUR:02d}:{settings.DAILY_SUMMARY_MINUTE:02d}"
             f" 生成汇总数据"
         )
+    elif is_vercel:
+        logger.info("Vercel 环境：跳过 APScheduler 后台定时任务")
 
     logger.info(f"服务地址: http://{settings.HOST}:{settings.PORT}")
     logger.info(f"API 文档: http://{settings.HOST}:{settings.PORT}/docs")
