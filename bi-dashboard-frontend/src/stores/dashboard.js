@@ -46,7 +46,7 @@ export const useDashboardStore = defineStore('dashboard', () => {
 
     try {
       const rangeArg = start ? { start, end } : end
-      const [sum, trd, sent, cats, pri, hot, rc, ins, risk] = await Promise.all([
+      const results = await Promise.allSettled([
         dashboardApi.fetchSummary(end),
         dashboardApi.fetchTrend(start, end),
         dashboardApi.fetchSentiment(end),
@@ -57,6 +57,21 @@ export const useDashboardStore = defineStore('dashboard', () => {
         dashboardApi.fetchInsights(end),
         dashboardApi.fetchRiskAlerts(end)
       ])
+      const valueAt = (index, fallback = null) => {
+        const result = results[index]
+        if (result.status === 'fulfilled') return result.value
+        console.warn('Dashboard partial fetch failed:', result.reason)
+        return fallback
+      }
+      const sum = valueAt(0, summary.value)
+      const trd = valueAt(1, trend.value)
+      const sent = valueAt(2, sentiment.value)
+      const cats = valueAt(3, categories.value)
+      const pri = valueAt(4, priority.value)
+      const hot = valueAt(5, hotPosts.value ? { posts: hotPosts.value } : null)
+      const rc = valueAt(6, rootCause.value)
+      const ins = valueAt(7, insights.value)
+      const risk = valueAt(8, riskAlerts.value)
       summary.value = sum
       trend.value = trd
       sentiment.value = sent
@@ -69,6 +84,8 @@ export const useDashboardStore = defineStore('dashboard', () => {
       rootCause.value = rc
       insights.value = ins
       riskAlerts.value = risk
+      const failed = results.find(result => result.status === 'rejected')
+      if (failed) error.value = failed.reason?.message || '部分数据加载失败'
     } catch (e) {
       error.value = e.message || '数据加载失败'
       console.error('Dashboard fetch error:', e)

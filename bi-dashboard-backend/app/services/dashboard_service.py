@@ -46,8 +46,143 @@ class DashboardService:
     # ---- 4.2.1 看板总览 ----
 
     @staticmethod
+    def _build_summary_from_posts(db: Session, target_date: date) -> dict:
+        resolved = DashboardService._resolve_post_date(db, target_date)
+        if resolved:
+            target_date = resolved
+
+        filters = [Post.data_date == target_date]
+        total = db.query(func.count(Post.id)).filter(*filters).scalar() or 0
+        if total == 0:
+            return {
+                "date": target_date.isoformat(),
+                "health_score": 100,
+                "health_status": "healthy",
+                "health_description": "暂无数据",
+                "total_posts": 0,
+                "daily_avg_posts": 0,
+                "bug_ratio": 0,
+                "negative_ratio": 0,
+                "today_vs_yesterday": {
+                    "change_type": "stable",
+                    "change_percent": 0,
+                    "description": "",
+                    "bar_percent": 0,
+                },
+                "p0_risk": {
+                    "level": "normal",
+                    "emergency_count": 0,
+                    "systemic_bug_count": 0,
+                    "p0_count": 0,
+                    "p1_count": 0,
+                    "p2_count": 0,
+                },
+                "data_period": {"start": "", "end": ""},
+                "sample_count": 0,
+            }
+
+        bug_posts = db.query(func.count(Post.id)).filter(
+            *filters,
+            Post.category.ilike("%Bug%"),
+        ).scalar() or 0
+        negative_count = db.query(func.count(Post.id)).filter(
+            *filters,
+            Post.sentiment == "negative",
+        ).scalar() or 0
+        p0_count = db.query(func.count(Post.id)).filter(*filters, Post.priority == "P0").scalar() or 0
+        p1_count = db.query(func.count(Post.id)).filter(*filters, Post.priority == "P1").scalar() or 0
+        p2_count = db.query(func.count(Post.id)).filter(*filters, Post.priority == "P2").scalar() or 0
+
+        bug_ratio = round(bug_posts / total * 100, 1)
+        negative_ratio = round(negative_count / total * 100, 1)
+        posts_in_range = db.query(func.count(Post.id)).filter(
+            Post.data_date >= target_date - timedelta(days=6),
+            Post.data_date <= target_date,
+        ).scalar() or total
+        daily_avg = round(posts_in_range / 7, 1)
+
+        prev_total = db.query(func.count(Post.id)).filter(
+            Post.data_date == target_date - timedelta(days=1)
+        ).scalar() or 0
+        if prev_total > 0:
+            change_pct = round((total - prev_total) / prev_total * 100, 1)
+            if change_pct > 15:
+                change_type = "surge"
+            elif change_pct > 5:
+                change_type = "increase"
+            elif change_pct >= -5:
+                change_type = "stable"
+            else:
+                change_type = "decrease"
+        else:
+            change_pct = 0
+            change_type = "stable"
+
+        emergency = db.query(func.count(Post.id)).filter(
+            *filters,
+            Post.category.ilike("%紧急%"),
+        ).scalar() or 0
+        systemic_bug = db.query(func.count(Post.id)).filter(
+            *filters,
+            Post.category.ilike("%Bug%"),
+            Post.priority == "P0",
+        ).scalar() or 0
+
+        if p0_count >= 5 or emergency >= 3:
+            risk_level = "urgent"
+        elif p0_count >= 2 or p1_count >= 20:
+            risk_level = "need_attention"
+        else:
+            risk_level = "normal"
+
+        min_date = db.query(func.min(Post.data_date)).scalar()
+        max_date = db.query(func.max(Post.data_date)).scalar()
+        sample_count = db.query(func.count(Post.id)).scalar() or 0
+        health_score = AnalysisService.calculate_health_score(
+            bug_posts / total,
+            negative_count / total,
+            p0_count,
+            0,
+        )
+        health_status = AnalysisService.get_health_status(health_score)
+
+        return {
+            "date": target_date.isoformat(),
+            "health_score": health_score,
+            "health_status": health_status,
+            "health_description": DashboardService._generate_health_description(
+                bug_ratio, negative_ratio, p0_count, health_status
+            ),
+            "total_posts": total,
+            "daily_avg_posts": daily_avg,
+            "bug_ratio": bug_ratio,
+            "negative_ratio": negative_ratio,
+            "today_vs_yesterday": {
+                "change_type": change_type,
+                "change_percent": abs(change_pct),
+                "description": f"帖子量变化 {abs(change_pct)}%",
+                "bar_percent": min(abs(change_pct), 100),
+            },
+            "p0_risk": {
+                "level": risk_level,
+                "emergency_count": emergency,
+                "systemic_bug_count": systemic_bug,
+                "p0_count": p0_count,
+                "p1_count": p1_count,
+                "p2_count": p2_count,
+            },
+            "data_period": {
+                "start": min_date.isoformat() if min_date else "",
+                "end": max_date.isoformat() if max_date else "",
+            },
+            "sample_count": sample_count,
+        }
+
+    @staticmethod
     def get_summary(db: Session, target_date: date) -> dict:
         """获取看板总览数据"""
+        return DashboardService._build_summary_from_posts(db, target_date)
+
         # 尝试从每日汇总表获取
         summary = db.query(DailySummary).filter(
             DailySummary.data_date == target_date
