@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+const baseURL = import.meta.env.VITE_API_BASE_URL
+  || (import.meta.env.PROD ? 'https://neixunxiangmu1.vercel.app/api/v1' : '/api/v1')
 
 const api = axios.create({
   baseURL,
